@@ -1,0 +1,392 @@
+:root {
+    /* Color Palette */
+    --bg-dark: #0f111a;
+    --bg-card: rgba(22, 25, 37, 0.65);
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    --secondary: #ec4899;
+    --accent: #10b981;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --input-bg: rgba(15, 17, 26, 0.5);
+    
+    /* Shadows and Effects */
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    --neon-glow: 0 0 15px rgba(99, 102, 241, 0.4);
+    
+    /* Transitions */
+    --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Outfit', sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow-x: hidden;
+    position: relative;
+    padding: 2rem 1rem;
+}
+
+/* Dynamic Background Shapes */
+.background-shape {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: -1;
+    opacity: 0.5;
+    animation: float 20s infinite ease-in-out;
+}
+
+.shape-1 {
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+    top: -10%;
+    left: -5%;
+    animation-delay: 0s;
+}
+
+.shape-2 {
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+    bottom: -5%;
+    right: -5%;
+    animation-delay: -5s;
+}
+
+.shape-3 {
+    width: 250px;
+    height: 250px;
+    background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+    top: 40%;
+    left: 60%;
+    animation-delay: -10s;
+}
+
+@keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
+}
+
+/* Container & Header */
+.container {
+    width: 100%;
+    max-width: 440px;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    z-index: 1;
+}
+
+.branding {
+    text-align: center;
+    animation: fadeDown 0.8s ease-out forwards;
+}
+
+.logo-icon {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--primary);
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.logo-icon svg {
+    width: 32px;
+    height: 32px;
+}
+
+.branding h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    background: linear-gradient(to right, #ffffff, #a5b4fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.5px;
+}
+
+.branding p {
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.5;
+    font-weight: 300;
+}
+
+/* Glassmorphism Card */
+.auth-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    padding: 2.5rem 2rem;
+    box-shadow: var(--glass-shadow);
+    overflow: hidden;
+    animation: fadeUp 0.8s 0.2s ease-out forwards;
+    opacity: 0;
+}
+
+/* Toggles */
+.toggle-container {
+    position: relative;
+    display: flex;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 2rem;
+}
+
+.toggle-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 0.75rem 0;
+    cursor: pointer;
+    font-family: inherit;
+    z-index: 2;
+    transition: color var(--transition-fast);
+}
+
+.toggle-btn.active {
+    color: white;
+}
+
+.toggle-indicator {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    z-index: 1;
+    transition: transform var(--transition-smooth);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Form Layout */
+.forms-wrapper {
+    position: relative;
+    min-height: 250px; /* Adjusts automatically via JS but provides baseline */
+    overflow: hidden;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    transition: transform var(--transition-smooth), opacity var(--transition-smooth);
+}
+
+.login-form {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: all;
+}
+
+.signup-form {
+    transform: translateX(50px);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Inputs */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-main);
+    letter-spacing: 0.3px;
+}
+
+.forgot-link {
+    font-size: 0.8rem;
+    color: var(--primary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.forgot-link:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 1rem;
+    width: 20px;
+    height: 20px;
+    color: var(--text-muted);
+    transition: color var(--transition-fast);
+}
+
+input {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 0.875rem 1rem 0.875rem 2.75rem;
+    color: white;
+    font-family: inherit;
+    font-size: 0.95rem;
+    outline: none;
+    transition: all var(--transition-fast);
+}
+
+input::placeholder {
+    color: rgba(148, 163, 184, 0.5);
+}
+
+input:focus {
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(15, 17, 26, 0.7);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+input:focus ~ .input-icon, input:not(:placeholder-shown) ~ .input-icon {
+    color: var(--primary);
+}
+
+.privacy-note {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    text-align: center;
+    margin-top: -0.25rem;
+}
+
+/* Buttons */
+.submit-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.875rem;
+    border: none;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.default-btn {
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.default-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.primary-btn {
+    background: linear-gradient(135deg, var(--primary), #818cf8);
+    color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.primary-btn:hover {
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.submit-btn:active {
+    transform: translateY(0);
+}
+
+.btn-icon {
+    width: 18px;
+    height: 18px;
+    transition: transform var(--transition-fast);
+}
+
+.submit-btn:hover .btn-icon {
+    transform: translateX(3px);
+}
+
+/* Animations */
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile Adjustments */
+@media (max-width: 480px) {
+    .auth-card {
+        padding: 2rem 1.5rem;
+    }
+    .branding h1 {
+        font-size: 2rem;
+    }
+}

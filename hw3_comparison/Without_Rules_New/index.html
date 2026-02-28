@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PreLeave - Smart Trip Departure Planner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Background Elements -->
+    <div class="background-shape shape-1"></div>
+    <div class="background-shape shape-2"></div>
+    <div class="background-shape shape-3"></div>
+
+    <div class="container">
+        <!-- Logo / Branding Header -->
+        <header class="branding">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+            </div>
+            <h1>PreLeave</h1>
+            <p>Never miss a departure again. Let us watch the traffic for you.</p>
+        </header>
+
+        <!-- Main Auth Card -->
+        <div class="auth-card">
+            <!-- Toggles for Login / Sign Up -->
+            <div class="toggle-container">
+                <button class="toggle-btn active" id="loginToggle">Log In</button>
+                <button class="toggle-btn" id="signupToggle">Sign Up</button>
+                <div class="toggle-indicator" id="toggleIndicator"></div>
+            </div>
+
+            <!-- Form Container -->
+            <div class="forms-wrapper" id="formsWrapper">
+                <!-- Login Form -->
+                <form id="loginForm" class="auth-form login-form">
+                    <div class="input-group">
+                        <label for="loginEmail">Email Address</label>
+                        <div class="input-wrapper">
+                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z">
+                                </path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
+                            <input type="email" id="loginEmail" placeholder="you@example.com" required
+                                autocomplete="email">
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <div class="label-row">
+                            <label for="loginPassword">Password</label>
+                            <a href="#" class="forgot-link">Forgot?</a>
+                        </div>
+                        <div class="input-wrapper">
+                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <input type="password" id="loginPassword" placeholder="••••••••" required
+                                autocomplete="current-password">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn default-btn">
+                        <span>Sign In</span>
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12h14"></path>
+                            <path d="M12 5l7 7-7 7"></path>
+                        </svg>
+                    </button>
+                </form>
+
+                <!-- Signup Form -->
+                <form id="signupForm" class="auth-form signup-form">
+                    <div class="input-group">
+                        <label for="signupEmail">Email Address</label>
+                        <div class="input-wrapper">
+                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z">
+                                </path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
+                            <input type="email" id="signupEmail" placeholder="you@example.com" required
+                                autocomplete="email">
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="signupPassword">Create Password</label>
+                        <div class="input-wrapper">
+                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <input type="password" id="signupPassword" placeholder="Must be at least 8 characters"
+                                required autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <p class="privacy-note">By signing up, you agree to our Terms of Service and Privacy Policy. Your
+                        trip data is kept strictly confidential.</p>
+
+                    <button type="submit" class="submit-btn primary-btn">
+                        <span>Create Account</span>
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5c-1.1 0-2 .9-2 2v2"></path>
+                            <circle cx="8.5" cy="7" r="4"></circle>
+                            <line x1="20" y1="8" x2="20" y2="14"></line>
+                            <line x1="23" y1="11" x2="17" y2="11"></line>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
