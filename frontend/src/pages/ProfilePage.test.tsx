@@ -3,10 +3,35 @@ import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ProfilePage from './ProfilePage';
 import { useAuthStore } from '../stores/authStore';
+import { useTripStore } from '../stores/tripStore';
 import api from '../services/api';
 
 vi.mock('../services/api');
 const mockNavigate = vi.fn();
+
+vi.mock('../stores/tripStore', () => ({
+    useTripStore: vi.fn(() => ({
+        historyTrips: [
+            {
+                id: '1',
+                startAddress: '123 Main St',
+                destAddress: '456 Market St',
+                requiredArrivalTime: '2026-03-08T10:00:00Z',
+                recommendedTransit: 'bus' as const,
+            },
+            {
+                id: '2',
+                startAddress: '789 Oak Ave',
+                destAddress: '321 Pine Rd',
+                requiredArrivalTime: '2026-03-09T14:30:00Z',
+                recommendedTransit: 'uber' as const,
+            }
+        ],
+        fetchTrips: vi.fn(),
+        deleteTrip: vi.fn(),
+        isLoading: false
+    })),
+}));
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual('react-router-dom');
@@ -89,5 +114,36 @@ describe('ProfilePage', () => {
             // The user should be redirected to login
             expect(mockNavigate).toHaveBeenCalledWith('/login');
         });
+    });
+
+    it('calls deleteTrip when the delete button is clicked', () => {
+        const mockDeleteTrip = vi.fn();
+        // Override the mock to inject our mockDeleteTrip
+        vi.mocked(useTripStore).mockReturnValue({
+            historyTrips: [
+                {
+                    id: '1',
+                    startAddress: '123 Main St',
+                    destAddress: '456 Market St',
+                    requiredArrivalTime: '2026-03-08T10:00:00Z',
+                    recommendedTransit: 'bus' as const,
+                }
+            ],
+            fetchTrips: vi.fn(),
+            deleteTrip: mockDeleteTrip,
+            isLoading: false
+        } as any);
+
+        render(
+            <BrowserRouter>
+                <ProfilePage />
+            </BrowserRouter>
+        );
+
+        const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+        expect(deleteButtons.length).toBeGreaterThan(0);
+
+        fireEvent.click(deleteButtons[0]);
+        expect(mockDeleteTrip).toHaveBeenCalledWith('1');
     });
 });

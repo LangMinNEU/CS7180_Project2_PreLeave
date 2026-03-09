@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import userRoutes from './routes/userRoutes';
 import authRoutes from './routes/authRoutes';
+import tripRoutes from './routes/tripRoutes';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use(cookieParser());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/trips', tripRoutes);
 
 app.get('/health', (req, res) => {
     res.status(200).json({ success: true, data: { status: 'ok' } });

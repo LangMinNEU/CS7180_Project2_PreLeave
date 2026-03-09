@@ -1,30 +1,20 @@
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, Trash2, LogOut } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { useTripStore } from '../stores/tripStore';
 import api from '../services/api';
-
-const mockTrips = [
-    {
-        id: '1',
-        startAddress: '123 Main St',
-        destAddress: '456 Market St',
-        arrivalTime: '2026-03-08T10:00:00Z',
-        recommendedTransit: 'bus' as const,
-    },
-    {
-        id: '2',
-        startAddress: '789 Oak Ave',
-        destAddress: '321 Pine Rd',
-        arrivalTime: '2026-03-09T14:30:00Z',
-        recommendedTransit: 'uber' as const,
-    }
-];
 
 export default function ProfilePage() {
     const user = useAuthStore((state) => state.user);
     const clearUser = useAuthStore((state) => state.clearUser);
+    const { historyTrips, fetchTrips, deleteTrip, isLoading } = useTripStore();
     const navigate = useNavigate();
     const username = user?.email || "Guest";
+
+    useEffect(() => {
+        fetchTrips();
+    }, [fetchTrips]);
 
     const handleLogout = async () => {
         try {
@@ -75,23 +65,31 @@ export default function ProfilePage() {
                         <h3 className="text-lg leading-6 font-medium text-gray-900">Trip History</h3>
                     </div>
                     <ul className="divide-y divide-gray-200">
-                        {mockTrips.length > 0 ? (
-                            mockTrips.map((trip) => (
+                        {isLoading ? (
+                            <li className="px-6 py-4 text-center text-gray-500">
+                                <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2 align-middle"></div>
+                                Loading history...
+                            </li>
+                        ) : historyTrips.length > 0 ? (
+                            historyTrips.map((trip) => (
                                 <li key={trip.id} className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <div>
                                         <p className="text-sm font-medium text-gray-900">
                                             {trip.startAddress} <span className="text-gray-400 mx-1">&rarr;</span> {trip.destAddress}
                                         </p>
                                         <p className="text-sm text-gray-500 mt-1">
-                                            Arrive by: {new Date(trip.arrivalTime).toLocaleString()}
+                                            Arrive by: {new Date(trip.requiredArrivalTime).toLocaleString()}
                                         </p>
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-2 capitalize ${trip.recommendedTransit === 'bus' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
-                                            {trip.recommendedTransit} recommended
-                                        </span>
+                                        {trip.recommendedTransit && (
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-2 capitalize ${trip.recommendedTransit === 'bus' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                {trip.recommendedTransit} recommended
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex items-center space-x-3">
                                         <button
                                             type="button"
+                                            onClick={() => navigate('/trips/new')}
                                             className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                             aria-label="Reuse"
                                         >
@@ -100,6 +98,7 @@ export default function ProfilePage() {
                                         </button>
                                         <button
                                             type="button"
+                                            onClick={() => deleteTrip(trip.id)}
                                             className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                                             aria-label="Delete"
                                         >
