@@ -1,15 +1,36 @@
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import HomePage from './HomePage';
+import { useTripStore } from '../stores/tripStore';
+
+// Mock the navigate hook
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+    const actual = await vi.importActual('react-router-dom');
+    return {
+        ...actual,
+        useNavigate: () => mockNavigate,
+    };
+});
+
+// Mock the Zustand store
+vi.mock('../stores/tripStore', () => ({
+    useTripStore: vi.fn(),
+}));
 
 describe('HomePage', () => {
-    it('renders the header and user profile link', () => {
-        render(
+    const renderComponent = () => {
+        return render(
             <BrowserRouter>
                 <HomePage />
             </BrowserRouter>
         );
+    };
+
+    it('renders the header and user profile link', () => {
+        vi.mocked(useTripStore).mockReturnValue([]);
+        renderComponent();
 
         expect(screen.getByText('PreLeave')).toBeInTheDocument();
 
@@ -19,14 +40,39 @@ describe('HomePage', () => {
         expect(profileLink).toHaveAttribute('href', '/profile');
     });
 
-    it('renders the empty state message', () => {
-        render(
-            <BrowserRouter>
-                <HomePage />
-            </BrowserRouter>
-        );
+    it('renders the empty state message when there are no upcoming trips', () => {
+        vi.mocked(useTripStore).mockReturnValue([]);
+        renderComponent();
 
-        expect(screen.getByText('Welcome to PreLeave')).toBeInTheDocument();
-        expect(screen.getByText('Your upcoming trips will appear here.')).toBeInTheDocument();
+        expect(screen.getByText('No upcoming trips')).toBeInTheDocument();
+        expect(screen.getByText('Get started by planning a new trip.')).toBeInTheDocument();
+        // Should have "Plan New Trip" in header, and "Plan Trip" in empty state
+        expect(screen.getAllByRole('button', { name: /plan/i }).length).toBeGreaterThan(0);
+    });
+
+    it('renders list of trips when there are upcoming trips in the store', () => {
+        const futureDate = new Date();
+        futureDate.setHours(futureDate.getHours() + 2);
+
+        const mockTrips = [
+            {
+                id: '1',
+                startAddress: 'Home',
+                destAddress: 'Office',
+                arrivalTime: futureDate.toISOString(),
+                status: 'pending' as const,
+                createdAt: new Date().toISOString(),
+                recommendedTransit: 'bus' as const,
+                departureTime: new Date().toISOString()
+            }
+        ];
+
+        vi.mocked(useTripStore).mockReturnValue(mockTrips);
+        renderComponent();
+
+        expect(screen.getByText('Office')).toBeInTheDocument();
+        expect(screen.getByText(/take bus/i)).toBeInTheDocument();
+        // Missing the empty state
+        expect(screen.queryByText('No upcoming trips')).not.toBeInTheDocument();
     });
 });

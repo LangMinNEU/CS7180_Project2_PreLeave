@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { loginSchema, registerSchema, RegisterFormData } from '../schemas/auth.schema';
@@ -7,15 +7,14 @@ import api from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { Loader2 } from 'lucide-react';
 
+// Use RegisterFormData to cover all possible fields
+type FormValues = RegisterFormData;
+
 export default function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
     const [globalError, setGlobalError] = useState('');
     const navigate = useNavigate();
     const setUser = useAuthStore((state) => state.setUser);
-
-    // Use RegisterFormData to cover all possible fields
-    type FormValues = RegisterFormData;
-
     const {
         register,
         handleSubmit,
@@ -25,7 +24,7 @@ export default function AuthPage() {
         resolver: zodResolver(isLogin ? loginSchema : registerSchema) as any,
     });
 
-    const onSubmit = async (data: FormValues) => {
+    const onSubmit: SubmitHandler<FormValues> = async (data) => {
         setGlobalError('');
         try {
             let response;
@@ -49,9 +48,10 @@ export default function AuthPage() {
 
             // Redirect user to homepage on success
             navigate('/homepage');
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { error?: string } } };
             setGlobalError(
-                error.response?.data?.error || 'An unexpected error occurred. Please try again.'
+                err.response?.data?.error || 'An unexpected error occurred. Please try again.'
             );
         }
     };
