@@ -15,6 +15,7 @@ export default function AuthPage() {
     const [globalError, setGlobalError] = useState('');
     const navigate = useNavigate();
     const setUser = useAuthStore((state) => state.setUser);
+    const setAccessToken = useAuthStore((state) => state.setAccessToken);
     const {
         register,
         handleSubmit,
@@ -44,6 +45,9 @@ export default function AuthPage() {
             // Save user info to global state
             if (response.data?.data?.user) {
                 setUser(response.data.data.user);
+            }
+            if (response.data?.data?.accessToken) {
+                setAccessToken(response.data.data.accessToken);
             }
 
             // Redirect user to homepage on success

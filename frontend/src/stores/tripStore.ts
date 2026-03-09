@@ -1,50 +1,75 @@
 import { create } from 'zustand';
+import * as tripService from '../services/tripService';
 
 export interface Trip {
     id: string;
+    userId: string;
     startAddress: string;
+    startLat?: number | null;
+    startLng?: number | null;
     destAddress: string;
-    arrivalTime: string;
+    destLat?: number | null;
+    destLng?: number | null;
+    requiredArrivalTime: string;
+    reminderLeadMinutes: number;
     status: 'pending' | 'reminded' | 'completed' | 'cancelled';
-    recommendedTransit?: 'bus' | 'uber';
-    busEtaMinutes?: number;
-    uberEtaMinutes?: number;
-    departureTime?: string;
+    recommendedTransit?: 'bus' | 'uber' | null;
+    busEtaMinutes?: number | null;
+    uberEtaMinutes?: number | null;
+    departureTime?: string | null;
     createdAt: string;
 }
 
 interface TripState {
-    trips: Trip[];
-    addTrip: (trip: Omit<Trip, 'id' | 'createdAt' | 'status'>) => void;
-    // We will expand these when backend integration happens.
-    // For now, these are just synchronous local operations.
+    upcomingTrips: Trip[];
+    historyTrips: Trip[];
+    isLoading: boolean;
+    error: string | null;
+    fetchTrips: () => Promise<void>;
+    addTrip: (tripData: Omit<Trip, 'id' | 'createdAt' | 'status' | 'userId' | 'requiredArrivalTime' | 'reminderLeadMinutes'> & { arrivalTime: string, reminderLeadMinutes?: number }) => Promise<void>;
 }
 
 export const useTripStore = create<TripState>((set) => ({
-    trips: [], // Start empty
-    addTrip: (tripData) => {
-        // Simulate adding a trip with mock ETAs and a random ID
-        const newTrip: Trip = {
-            id: Math.random().toString(36).substring(7),
-            ...tripData,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-            // Mocking recommendations for UI demonstration
-            recommendedTransit: Math.random() > 0.5 ? 'bus' : 'uber',
-            busEtaMinutes: Math.floor(Math.random() * 30) + 15, // 15-45 mins
-            uberEtaMinutes: Math.floor(Math.random() * 20) + 10, // 10-30 mins
-        };
-
-        // Compute pseudo departure time (arrival - assumed max ETA - buffer)
-        // Just mocking roughly 1 hour before arrival for now
-        const arrivalDate = new Date(tripData.arrivalTime);
-        arrivalDate.setHours(arrivalDate.getHours() - 1);
-        newTrip.departureTime = arrivalDate.toISOString();
-
-        set((state) => ({
-            trips: [...state.trips, newTrip].sort(
-                (a, b) => new Date(a.arrivalTime).getTime() - new Date(b.arrivalTime).getTime()
-            ),
-        }));
+    upcomingTrips: [],
+    historyTrips: [],
+    isLoading: false,
+    error: null,
+    fetchTrips: async () => {
+        set({ isLoading: true, error: null });
+        try {
+            const response = await tripService.getTrips();
+            if (response.success) {
+                set({
+                    upcomingTrips: response.data.upcoming,
+                    historyTrips: response.data.history,
+                    isLoading: false
+                });
+            } else {
+                set({ error: response.error || 'Failed to fetch trips', isLoading: false });
+            }
+        } catch (err: any) {
+            set({ error: err.response?.data?.error || 'Failed to fetch trips', isLoading: false });
+        }
+    },
+    addTrip: async (tripData) => {
+        set({ isLoading: true, error: null });
+        try {
+            const response = await tripService.createTrip({
+                startAddress: tripData.startAddress,
+                destAddress: tripData.destAddress,
+                arrivalTime: new Date(tripData.arrivalTime).toISOString(),
+                reminderLeadMinutes: tripData.reminderLeadMinutes || 60,
+            });
+            if (response.success && response.data) {
+                // To keep it simple, just re-fetch all trips after adding instead of doing logic locally
+                set({ isLoading: false });
+                const store = useTripStore.getState();
+                await store.fetchTrips();
+            } else {
+                set({ error: response.error || 'Failed to create trip', isLoading: false });
+            }
+        } catch (err: any) {
+            set({ error: err.response?.data?.error || 'Failed to create trip', isLoading: false });
+        }
     },
 }));

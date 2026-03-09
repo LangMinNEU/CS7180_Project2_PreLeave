@@ -29,7 +29,7 @@ describe('HomePage', () => {
     };
 
     it('renders the header and user profile link', () => {
-        vi.mocked(useTripStore).mockReturnValue([]);
+        vi.mocked(useTripStore).mockReturnValue({ upcomingTrips: [], fetchTrips: vi.fn(), isLoading: false });
         renderComponent();
 
         expect(screen.getByText('PreLeave')).toBeInTheDocument();
@@ -41,7 +41,7 @@ describe('HomePage', () => {
     });
 
     it('renders the empty state message when there are no upcoming trips', () => {
-        vi.mocked(useTripStore).mockReturnValue([]);
+        vi.mocked(useTripStore).mockReturnValue({ upcomingTrips: [], fetchTrips: vi.fn(), isLoading: false });
         renderComponent();
 
         expect(screen.getByText('No upcoming trips')).toBeInTheDocument();
@@ -60,6 +60,7 @@ describe('HomePage', () => {
                 startAddress: 'Home',
                 destAddress: 'Office',
                 arrivalTime: futureDate.toISOString(),
+                requiredArrivalTime: futureDate.toISOString(),
                 status: 'pending' as const,
                 createdAt: new Date().toISOString(),
                 recommendedTransit: 'bus' as const,
@@ -67,7 +68,7 @@ describe('HomePage', () => {
             }
         ];
 
-        vi.mocked(useTripStore).mockReturnValue(mockTrips);
+        vi.mocked(useTripStore).mockReturnValue({ upcomingTrips: mockTrips, fetchTrips: vi.fn(), isLoading: false });
         renderComponent();
 
         expect(screen.getByText('Office')).toBeInTheDocument();

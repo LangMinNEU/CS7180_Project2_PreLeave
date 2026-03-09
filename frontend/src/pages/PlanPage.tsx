@@ -18,11 +18,16 @@ export default function PlanPage() {
     });
 
     const onSubmit = async (data: PlanTripFormData) => {
-        // Simulate an API call delay
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        addTrip(data);
-        navigate('/homepage');
+        const arrivalIsoString = new Date(`${data.arrivalDate}T${data.arrivalTime}`).toISOString();
+        await addTrip({
+            startAddress: data.startAddress,
+            destAddress: data.destAddress,
+            arrivalTime: arrivalIsoString,
+        });
+        const { error } = useTripStore.getState();
+        if (!error) {
+            navigate('/homepage');
+        }
     };
 
     return (
@@ -85,6 +90,27 @@ export default function PlanPage() {
                         </div>
 
                         <div>
+                            <label htmlFor="arrivalDate" className="block text-sm font-medium text-gray-700">
+                                Required Arrival Date
+                            </label>
+                            <div className="mt-1 relative rounded-md shadow-sm">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Clock className="h-5 w-5 text-gray-400" />
+                                </div>
+                                <input
+                                    id="arrivalDate"
+                                    type="date"
+                                    className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-2 px-3 border ${errors.arrivalDate ? 'border-red-300' : ''
+                                        }`}
+                                    {...register('arrivalDate')}
+                                />
+                            </div>
+                            {errors.arrivalDate && (
+                                <p className="mt-2 text-sm text-red-600">{errors.arrivalDate.message}</p>
+                            )}
+                        </div>
+
+                        <div>
                             <label htmlFor="arrivalTime" className="block text-sm font-medium text-gray-700">
                                 Required Arrival Time
                             </label>
@@ -94,7 +120,7 @@ export default function PlanPage() {
                                 </div>
                                 <input
                                     id="arrivalTime"
-                                    type="datetime-local"
+                                    type="time"
                                     className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-2 px-3 border ${errors.arrivalTime ? 'border-red-300' : ''
                                         }`}
                                     {...register('arrivalTime')}

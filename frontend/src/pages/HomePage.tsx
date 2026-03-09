@@ -1,13 +1,15 @@
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserCircle, Plus, MapPin, Clock, Navigation } from 'lucide-react';
 import { useTripStore } from '../stores/tripStore';
 
 export default function HomePage() {
     const navigate = useNavigate();
-    const trips = useTripStore((state) => state.trips);
+    const { upcomingTrips, fetchTrips, isLoading } = useTripStore();
 
-    // Filter to only show upcoming trips
-    const upcomingTrips = trips.filter(t => new Date(t.arrivalTime) > new Date());
+    useEffect(() => {
+        fetchTrips();
+    }, [fetchTrips]);
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             <header className="bg-white shadow">
@@ -37,7 +39,12 @@ export default function HomePage() {
                     </button>
                 </div>
 
-                {upcomingTrips.length === 0 ? (
+                {isLoading ? (
+                    <div className="text-center py-20 bg-white rounded-lg shadow border border-gray-200">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <p className="mt-2 text-sm text-gray-500">Loading your trips...</p>
+                    </div>
+                ) : upcomingTrips.length === 0 ? (
                     <div className="text-center py-20 bg-white rounded-lg shadow border border-gray-200">
                         <Navigation className="mx-auto h-12 w-12 text-gray-400" />
                         <h3 className="mt-2 text-sm font-medium text-gray-900">No upcoming trips</h3>
@@ -58,13 +65,19 @@ export default function HomePage() {
                             <div key={trip.id} className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200">
                                 <div className="px-4 py-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center">
                                     <div className="space-y-3 flex-1">
-                                        <div className="flex items-center text-sm font-medium text-gray-900">
-                                            <MapPin className="mr-2 h-5 w-5 text-gray-400" />
-                                            {trip.destAddress}
+                                        <div className="flex flex-col gap-1 mb-2">
+                                            <div className="flex items-center text-sm font-medium text-gray-900">
+                                                <MapPin className="mr-2 h-4 w-4 text-green-500" />
+                                                From: {trip.startAddress}
+                                            </div>
+                                            <div className="flex items-center text-sm font-medium text-gray-900">
+                                                <MapPin className="mr-2 h-4 w-4 text-red-500" />
+                                                To: {trip.destAddress}
+                                            </div>
                                         </div>
                                         <div className="flex items-center text-sm text-gray-500">
                                             <Clock className="mr-2 h-5 w-5 text-gray-400" />
-                                            Arrive by: {new Date(trip.arrivalTime).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
+                                            Arrive by: {new Date(trip.requiredArrivalTime).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
                                         </div>
                                         {trip.departureTime && (
                                             <div className="flex items-center text-sm text-red-600 font-medium">
