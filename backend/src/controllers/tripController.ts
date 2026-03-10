@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { geocodeAddress, getCarEta, getTransitEta } from '../services/hereApiService';
 
 const prisma = new PrismaClient();
 
@@ -45,28 +46,81 @@ export const createTrip = async (req: AuthRequest, res: Response): Promise<void>
 
         const validatedData = createTripSchema.parse(req.body);
 
-        // Calculate a dummy departure time (dummy ETA ~30 mins + lead minutes)
-        // In reality, this would use a routing API.
-        const arrivalDate = new Date(validatedData.arrivalTime);
-        const dummyEtaMinutes = Math.floor(Math.random() * 30) + 15; // 15-45 mins
+        // Map and lookup coordinates using HERE API if missing
+        let startLat = validatedData.startLat;
+        let startLng = validatedData.startLng;
+        if (startLat === undefined || startLng === undefined) {
+            const startCoords = await geocodeAddress(validatedData.startAddress);
+            startLat = startCoords.lat;
+            startLng = startCoords.lng;
+        }
 
-        const departureDate = new Date(arrivalDate.getTime() - dummyEtaMinutes * 60000);
+        let destLat = validatedData.destLat;
+        let destLng = validatedData.destLng;
+        if (destLat === undefined || destLng === undefined) {
+            const destCoords = await geocodeAddress(validatedData.destAddress);
+            destLat = destCoords.lat;
+            destLng = destCoords.lng;
+        }
+
+        const origin = { lat: startLat, lng: startLng };
+        const dest = { lat: destLat, lng: destLng };
+        const arrivalDate = new Date(validatedData.arrivalTime);
+
+        // Fetch ETAs concurrently
+        let carEtaMinutes = 0;
+        let busEtaMinutes = 0;
+        try {
+            [carEtaMinutes, busEtaMinutes] = await Promise.all([
+                getCarEta(origin, dest, arrivalDate).catch((e: any) => {
+                    console.error('Car ETA error:', e.message);
+                    return 0; // Fallback to 0 if no route
+                }),
+                getTransitEta(origin, dest, arrivalDate).catch((e: any) => {
+                    console.error('Transit ETA error:', e.message);
+                    return 0; // Fallback to 0 if no route
+                })
+            ]);
+
+            if (carEtaMinutes === 0 && busEtaMinutes === 0) {
+                throw new Error("No routes found for either transit or car.");
+            }
+        } catch (error) {
+            console.error('Error fetching ETAs concurrently:', error);
+            res.status(500).json({ success: false, error: 'Failed to find routes' });
+            return;
+        }
+
+        // Determine recommended transit
+        let recommendedTransit = 'car';
+        if (busEtaMinutes > 0 && carEtaMinutes > 0) {
+            recommendedTransit = busEtaMinutes <= carEtaMinutes + 15 ? 'bus' : 'uber';
+        } else if (busEtaMinutes > 0) {
+            recommendedTransit = 'bus';
+        } else if (carEtaMinutes > 0) {
+            recommendedTransit = 'uber';
+        }
+
+        const selectedEtaMinutes = recommendedTransit === 'bus' ? busEtaMinutes : carEtaMinutes;
+
+        // Departure time calculation = Required Arrival Time - (Selected ETA + Buffer Minutes)
+        const departureDate = new Date(arrivalDate.getTime() - selectedEtaMinutes * 60000 - 5 * 60000); // adding a 5 minute safety buffer
 
         const newTrip = await prisma.trip.create({
             data: {
                 user_id: userId,
                 start_address: validatedData.startAddress,
-                start_lat: validatedData.startLat,
-                start_lng: validatedData.startLng,
+                start_lat: startLat,
+                start_lng: startLng,
                 dest_address: validatedData.destAddress,
-                dest_lat: validatedData.destLat,
-                dest_lng: validatedData.destLng,
+                dest_lat: destLat,
+                dest_lng: destLng,
                 required_arrival_time: arrivalDate,
                 reminder_lead_minutes: validatedData.reminderLeadMinutes,
                 status: 'pending',
-                recommended_transit: Math.random() > 0.5 ? 'bus' : 'uber', // Mock recommendation
-                bus_eta_minutes: Math.floor(Math.random() * 30) + 15,
-                uber_eta_minutes: Math.floor(Math.random() * 20) + 10,
+                recommended_transit: recommendedTransit,
+                bus_eta_minutes: busEtaMinutes,
+                uber_eta_minutes: carEtaMinutes,
                 departure_time: departureDate,
             },
         });
