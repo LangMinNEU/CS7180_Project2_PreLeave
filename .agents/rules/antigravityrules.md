@@ -98,3 +98,7 @@ Do Not: Use Google Maps, Uber API, Next.js, NestJS, GraphQL, commit secrets, or 
 Prioritize using these credentials for testing in the browser (e.g., if account doesn't exist, sign up using these):
 - Username: test001@example.com
 - Password: 114514
+- Start address (From): 3000 Hell St.
+- Destination (To): 5173 Heaven Ave.
+- Date: Depends
+- Arrival time: Depends

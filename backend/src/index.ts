@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import userRoutes from './routes/userRoutes';
 import authRoutes from './routes/authRoutes';
 import tripRoutes from './routes/tripRoutes';
+import { startWorker } from './services/workerService';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.get('/health', (req, res) => {
 if (require.main === module) {
     app.listen(port, () => {
         console.log(`Server is running on port ${port}`);
+        startWorker();
     });
 }
 

@@ -120,11 +120,8 @@ describe('PlanPage Component', () => {
         const submitButton = screen.getByRole('button', { name: /plan trip/i });
         fireEvent.click(submitButton);
 
-        // Verification of navigate happens after submission completes (mocked delay 800ms)
-        // In a real test we'd probably want to await for the state to settle
         await waitFor(() => {
-            // MockNavigate should be called after form completes
-            // Since we mocked addTrip via useTripStore it'll pass through without failing
+            expect(mockAddTrip).toHaveBeenCalled();
         });
     });
 });

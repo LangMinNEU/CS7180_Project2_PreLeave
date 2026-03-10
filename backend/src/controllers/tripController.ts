@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { pushQueue } from '../services/queueService';
+import { processPushJobData } from '../services/workerService';
 
 const prisma = new PrismaClient();
 
@@ -70,6 +72,61 @@ export const createTrip = async (req: AuthRequest, res: Response): Promise<void>
                 departure_time: departureDate,
             },
         });
+
+        // Schedule push notifications 60 and 40 minutes before arrival
+        const nowMs = Date.now();
+        const arrivalMs = arrivalDate.getTime();
+
+        const delay60 = arrivalMs - 60 * 60000 - nowMs;
+        const delay40 = arrivalMs - 40 * 60000 - nowMs;
+
+        if (delay60 > 0 || delay40 > 0) {
+            const addWithTimeout = async (name: string, data: any, opts: any) => {
+                const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Redis timeout')), 500));
+                return Promise.race([pushQueue.add(name, data, opts), timeout]);
+            };
+
+            try {
+                if (delay60 > 0) {
+                    await addWithTimeout(
+                        'send-push',
+                        {
+                            tripId: newTrip.id,
+                            userId,
+                            title: 'Upcoming Trip in 60 Minutes',
+                            body: `Time to prepare! Recommended transit: ${newTrip.recommended_transit}`
+                        },
+                        { delay: delay60 }
+                    );
+                }
+
+                if (delay40 > 0) {
+                    await addWithTimeout(
+                        'send-push',
+                        {
+                            tripId: newTrip.id,
+                            userId,
+                            title: 'Upcoming Trip in 40 Minutes',
+                            body: `You should leave soon! Recommended transit: ${newTrip.recommended_transit}`
+                        },
+                        { delay: delay40 }
+                    );
+                }
+            } catch (e) {
+                console.warn('Redis unavailable, scheduling push via in-memory setTimeout fallback:', e);
+
+                if (delay60 > 0) {
+                    setTimeout(() => {
+                        processPushJobData(`local-${newTrip.id}-60`, newTrip.id, userId, 'Upcoming Trip in 60 Minutes', `Time to prepare! Recommended transit: ${newTrip.recommended_transit}`).catch(console.error);
+                    }, delay60);
+                }
+                if (delay40 > 0) {
+                    setTimeout(() => {
+                        processPushJobData(`local-${newTrip.id}-40`, newTrip.id, userId, 'Upcoming Trip in 40 Minutes', `You should leave soon! Recommended transit: ${newTrip.recommended_transit}`).catch(console.error);
+                    }, delay40);
+                }
+            }
+        }
 
         res.status(201).json({ success: true, data: mapTripToDto(newTrip) });
     } catch (error: any) {

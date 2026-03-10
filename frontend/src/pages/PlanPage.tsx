@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTripStore } from '../stores/tripStore';
 import { planTripSchema, PlanTripFormData } from '../schemas/trip.schema';
 import { MapPin, Clock } from 'lucide-react';
+import { registerAndSubscribeToPush } from '../services/pushService';
 
 export default function PlanPage() {
     const navigate = useNavigate();
@@ -18,6 +19,11 @@ export default function PlanPage() {
     });
 
     const onSubmit = async (data: PlanTripFormData) => {
+        // Request push permission and subscribe without blocking
+        setTimeout(() => {
+            registerAndSubscribeToPush().catch(console.error);
+        }, 0);
+
         const arrivalIsoString = new Date(`${data.arrivalDate}T${data.arrivalTime}`).toISOString();
         await addTrip({
             startAddress: data.startAddress,

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+import { AuthRequest } from '../middleware/authMiddleware';
 
-export const getProfile = async (req: Request, res: Response) => {
+const prisma = new PrismaClient(); export const getProfile = async (req: Request, res: Response) => {
     // Mocked out response since we don't have a DB connection / complete auth setup yet
     // but we want to fulfill the PRD format: { success, data, error }
     res.json({
@@ -26,4 +28,31 @@ export const getProfile = async (req: Request, res: Response) => {
             ]
         }
     });
+};
+
+export const setupPush = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.userId;
+        const { subscription } = req.body;
+
+        if (!userId) {
+            res.status(401).json({ success: false, error: 'Unauthorized' });
+            return;
+        }
+
+        if (!subscription) {
+            res.status(400).json({ success: false, error: 'Subscription data required' });
+            return;
+        }
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { push_subscription: subscription }
+        });
+
+        res.status(200).json({ success: true, data: { message: 'Push subscription saved' } });
+    } catch (error) {
+        console.error('Setup push error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
 };
