@@ -38,6 +38,9 @@ const mapTripToDto = (trip: any) => ({
     carLeaveBy: trip.car_leave_by,
     departureTime: trip.departure_time,
     createdAt: trip.created_at,
+    busAvailable: trip.bus_leave_by ? new Date(trip.bus_leave_by) > new Date() : false,
+    carAvailable: trip.car_leave_by ? new Date(trip.car_leave_by) > new Date() : false,
+    etaUpdatedAt: trip.eta_updated_at,
 });
 
 export const createTrip = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -112,13 +115,26 @@ export const createTrip = async (req: AuthRequest, res: Response): Promise<void>
             return;
         }
 
+        // Calculate individual leave times (with 5 min buffer)
+        const busLeaveByDate = busEtaMinutes > 0 ? new Date(arrivalDate.getTime() - busEtaMinutes * 60000 - 5 * 60000) : null;
+        const carLeaveByDate = carEtaMinutes > 0 ? new Date(arrivalDate.getTime() - carEtaMinutes * 60000 - 5 * 60000) : null;
+
+        const now = new Date();
+        const busAvailable = busLeaveByDate ? busLeaveByDate > now : false;
+        const carAvailable = carLeaveByDate ? carLeaveByDate > now : false;
+
+        if (!busAvailable && !carAvailable) {
+            res.status(400).json({ success: false, error: 'The arrival time is too soon. Neither transit option can get you there on time. Please choose a later arrival time.' });
+            return;
+        }
+
         // Determine recommended transit
         let recommendedTransit = 'car';
-        if (busEtaMinutes > 0 && carEtaMinutes > 0) {
+        if (busAvailable && carAvailable) {
             recommendedTransit = busEtaMinutes <= carEtaMinutes * 1.5 ? 'bus' : 'car';
-        } else if (busEtaMinutes > 0) {
+        } else if (busAvailable) {
             recommendedTransit = 'bus';
-        } else if (carEtaMinutes > 0) {
+        } else {
             recommendedTransit = 'car';
         }
 
@@ -126,10 +142,6 @@ export const createTrip = async (req: AuthRequest, res: Response): Promise<void>
 
         // Departure time calculation = Required Arrival Time - (Selected ETA + Buffer Minutes)
         const departureDate = new Date(arrivalDate.getTime() - selectedEtaMinutes * 60000 - 5 * 60000); // adding a 5 minute safety buffer
-        
-        // Calculate individual leave times (with 5 min buffer)
-        const busLeaveByDate = busEtaMinutes > 0 ? new Date(arrivalDate.getTime() - busEtaMinutes * 60000 - 5 * 60000) : null;
-        const carLeaveByDate = carEtaMinutes > 0 ? new Date(arrivalDate.getTime() - carEtaMinutes * 60000 - 5 * 60000) : null;
 
         const newTrip = await prisma.trip.create({
             data: {
@@ -327,5 +339,89 @@ export const deleteTrip = async (req: AuthRequest, res: Response): Promise<void>
     } catch (error) {
         console.error('Delete trip error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+};
+
+export const recalculateTripEta = async (tripId: string) => {
+    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+    if (!trip) throw new Error('Trip not found');
+
+    if (!trip.start_lat || !trip.start_lng || !trip.dest_lat || !trip.dest_lng) {
+        throw new Error('Coordinates missing for trip');
+    }
+
+    const origin = { lat: trip.start_lat, lng: trip.start_lng };
+    const dest = { lat: trip.dest_lat, lng: trip.dest_lng };
+    const arrivalDate = trip.required_arrival_time;
+
+    let carEtaMinutes = 0;
+    let busEtaMinutes = 0;
+    
+    try {
+        [carEtaMinutes, busEtaMinutes] = await Promise.all([
+            getCarEta(origin, dest, arrivalDate).catch((e: any) => 0),
+            getTransitEta(origin, dest, arrivalDate).catch((e: any) => 0)
+        ]);
+    } catch (err: any) {
+        console.error('Error in underlying ETA refresh execution:', err);
+    }
+
+    const busLeaveByDate = busEtaMinutes > 0 ? new Date(arrivalDate.getTime() - busEtaMinutes * 60000 - 5 * 60000) : null;
+    const carLeaveByDate = carEtaMinutes > 0 ? new Date(arrivalDate.getTime() - carEtaMinutes * 60000 - 5 * 60000) : null;
+
+    const now = new Date();
+    const busAvailable = busLeaveByDate ? busLeaveByDate > now : false;
+    const carAvailable = carLeaveByDate ? carLeaveByDate > now : false;
+
+    let recommendedTransit = 'car';
+    if (busAvailable && carAvailable) {
+        recommendedTransit = busEtaMinutes <= carEtaMinutes * 1.5 ? 'bus' : 'car';
+    } else if (busAvailable) {
+        recommendedTransit = 'bus';
+    } else {
+        recommendedTransit = 'car';
+    }
+
+    const selectedTransit = trip.selected_transit || recommendedTransit;
+    const selectedEtaMinutes = selectedTransit === 'bus' ? busEtaMinutes : carEtaMinutes;
+    const departureDate = new Date(arrivalDate.getTime() - selectedEtaMinutes * 60000 - 5 * 60000);
+
+    const updatedTrip = await prisma.trip.update({
+        where: { id: tripId },
+        data: {
+            recommended_transit: recommendedTransit,
+            bus_eta_minutes: busEtaMinutes,
+            uber_eta_minutes: carEtaMinutes,
+            bus_leave_by: busLeaveByDate,
+            car_leave_by: carLeaveByDate,
+            departure_time: departureDate,
+            eta_updated_at: new Date()
+        }
+    });
+
+    return updatedTrip;
+};
+
+export const refreshEta = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.userId;
+        const tripId = req.params.id;
+
+        if (!userId) {
+            res.status(401).json({ success: false, error: 'Unauthorized' });
+            return;
+        }
+
+        const tripCheck = await prisma.trip.findUnique({ where: { id: tripId } });
+        if (!tripCheck || tripCheck.user_id !== userId) {
+            res.status(404).json({ success: false, error: 'Trip not found' });
+            return;
+        }
+
+        const updatedTrip = await recalculateTripEta(tripId);
+        res.status(200).json({ success: true, data: mapTripToDto(updatedTrip) });
+    } catch (error: any) {
+        console.error('Refresh ETA error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error', details: error.message });
     }
 };

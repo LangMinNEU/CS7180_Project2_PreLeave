@@ -63,14 +63,14 @@ describe('Trip Controller Integration', () => {
                 dest_address: 'Dest',
                 dest_lat: 10,
                 dest_lng: 10,
-                required_arrival_time: new Date('2026-03-10T12:00:00Z'),
+                required_arrival_time: new Date('2030-03-10T12:00:00Z'),
                 reminder_lead_minutes: 60,
                 status: 'pending',
                 recommended_transit: 'car',
                 bus_eta_minutes: 40,
                 uber_eta_minutes: 20,
-                departure_time: new Date('2026-03-10T11:35:00Z'), // 12:00 - 20m - 5m buffer
-                created_at: new Date('2026-03-10T11:30:00Z'),
+                departure_time: new Date('2030-03-10T11:35:00Z'), // 12:00 - 20m - 5m buffer
+                created_at: new Date('2030-03-10T11:30:00Z'),
             };
 
             prisma.trip.create.mockResolvedValue(mockTripCreated);
@@ -78,7 +78,7 @@ describe('Trip Controller Integration', () => {
             const payload = {
                 startAddress: 'Start',
                 destAddress: 'Dest',
-                arrivalTime: '2026-03-10T12:00:00.000Z',
+                arrivalTime: '2030-03-10T12:00:00.000Z',
             };
 
             const response = await request(app)
@@ -119,7 +119,7 @@ describe('Trip Controller Integration', () => {
             const payload = {
                 startAddress: 'Start',
                 destAddress: 'Dest',
-                arrivalTime: '2026-03-10T12:00:00.000Z',
+                arrivalTime: '2030-03-10T12:00:00.000Z',
             };
 
             const response = await request(app)

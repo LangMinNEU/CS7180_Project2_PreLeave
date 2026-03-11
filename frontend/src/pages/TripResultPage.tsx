@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTripStore } from '../stores/tripStore';
-import { MapPin, Clock, ArrowRight, Bus, CarFront, CheckCircle2 } from 'lucide-react';
+import { MapPin, Clock, ArrowRight, Bus, CarFront, CheckCircle2, RefreshCw } from 'lucide-react';
+import { registerPushSubscription, hasPushPermission, isPushDenied } from '../services/pushNotificationService';
 
 export default function TripResultPage() {
     const { id } = useParams<{ id: string }>();
@@ -10,6 +11,26 @@ export default function TripResultPage() {
     const { currentTrip, fetchTrip, selectTransit, isLoading, error } = useTripStore();
     const [selectedMode, setSelectedMode] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await useTripStore.getState().refreshEta(id as string);
+        } catch (error) {
+            console.error('Failed to refresh ETA:', error);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 60000);
+        return () => clearInterval(intervalId);
+    }, []);
 
     useEffect(() => {
         if (location.state?.trip) {
@@ -80,6 +101,9 @@ export default function TripResultPage() {
         return new Date(isoString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     };
 
+    const isBusPassed = busLeaveBy ? currentTime > new Date(busLeaveBy) : false;
+    const isCarPassed = carLeaveBy ? currentTime > new Date(carLeaveBy) : false;
+
     const isBusAvailable = !!(busEtaMinutes && busEtaMinutes > 0);
     const isCarAvailable = !!(carEtaMinutes && carEtaMinutes > 0);
 
@@ -106,6 +130,17 @@ export default function TripResultPage() {
             setIsSaving(false);
         }
         
+        if (!hasPushPermission() && !isPushDenied()) {
+            const wantPush = window.confirm("Would you like to enable departure reminders? We'll notify you 5 minutes before your suggested departure time.");
+            if (wantPush) {
+                await registerPushSubscription();
+            } else {
+                localStorage.setItem('pushDenied', 'true');
+            }
+        } else if (hasPushPermission()) {
+            await registerPushSubscription();
+        }
+
         navigate('/homepage');
     };
 
@@ -121,7 +156,9 @@ export default function TripResultPage() {
                     <div className="inline-flex items-center justify-center p-3 bg-green-100 rounded-full mb-4">
                         <CheckCircle2 className="h-8 w-8 text-green-600" />
                     </div>
-                    <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Trip Planned!</h1>
+                    <div className="flex items-center justify-center space-x-3">
+                        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Trip Planned!</h1>
+                    </div>
                     <p className="mt-2 text-lg text-gray-600">Your smart departure schedule is ready.</p>
                 </div>
 
@@ -155,25 +192,37 @@ export default function TripResultPage() {
                 </div>
 
                 {/* Recommended Departure Card */}
-                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-xl mb-8 transform hover:scale-105 transition duration-500 relative overflow-hidden">
+                <div className={`${displayLeaveBy && currentTime > new Date(displayLeaveBy) ? 'bg-red-600' : 'bg-gradient-to-br from-blue-600 to-indigo-700'} rounded-2xl shadow-xl mb-8 transform hover:scale-105 transition duration-500 relative overflow-hidden`}>
                     <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition duration-300 pointer-events-none"></div>
                     <div className="p-8 text-center text-white relative z-10">
-                        <h2 className="text-lg font-medium text-blue-100 uppercase tracking-wide mb-2">Recommended Departure Time</h2>
+                        <h2 className={`text-lg font-medium uppercase tracking-wide mb-2 ${displayLeaveBy && currentTime > new Date(displayLeaveBy) ? 'text-white' : 'text-blue-100'}`}>
+                            {displayLeaveBy && currentTime > new Date(displayLeaveBy) ? '⚠️ Recommended departure time has passed' : 'Recommended Departure Time'}
+                        </h2>
                         <div className="text-5xl font-extrabold tracking-tight mb-2 flex items-center justify-center transition-all duration-300">
                             <Clock className="h-10 w-10 mr-4 opacity-80" />
                             {formatTime(displayLeaveBy)}
                         </div>
-                        <p className="text-blue-200 text-sm transition-opacity duration-300">
+                        <p className={`${displayLeaveBy && currentTime > new Date(displayLeaveBy) ? 'text-red-200' : 'text-blue-200'} text-sm transition-opacity duration-300`}>
                             (Includes a {bufferMinutes} min buffer for {transitText})
                         </p>
                     </div>
                 </div>
 
                 {/* Comparison Section */}
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 px-1">Transit Comparison</h3>
+                <div className="flex items-center justify-between mb-4 px-1">
+                    <h3 className="text-lg font-semibold text-gray-900">Transit Comparison</h3>
+                    <button 
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        className="inline-flex items-center p-2 border border-transparent text-sm font-medium rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shrink-0 self-center disabled:opacity-50 transition-colors"
+                        aria-label="Refresh ETA"
+                    >
+                        <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin text-blue-500' : ''}`} />
+                    </button>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                     {/* Bus Option */}
-                    {isBusAvailable ? (
+                    {isBusAvailable && currentTrip.busAvailable !== false ? (
                         <div 
                             onClick={() => isToggleable && setSelectedMode('bus')}
                             className={`relative bg-white rounded-xl shadow p-6 border-2 transition-all duration-200 ${
@@ -181,16 +230,19 @@ export default function TripResultPage() {
                             } ${isToggleable ? 'cursor-pointer hover:shadow-md' : ''}`}
                         >
                             <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 flex space-x-1 whitespace-nowrap">
-                                {recommendedTransit === 'bus' && (
+                                {isBusPassed ? (
+                                    <span className="bg-red-500 text-white px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center">
+                                        ⚠️ Passed
+                                    </span>
+                                ) : recommendedTransit === 'bus' ? (
                                     <span className="bg-green-500 text-white px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center">
                                         <CheckCircle2 className="w-3 h-3 mr-1" /> Recommended
                                     </span>
-                                )}
-                                {actualSelectedMode === 'bus' && recommendedTransit !== 'bus' && (
+                                ) : actualSelectedMode === 'bus' ? (
                                     <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center">
                                         <CheckCircle2 className="w-3 h-3 mr-1" /> Selected
                                     </span>
-                                )}
+                                ) : null}
                             </div>
                             <div className="flex items-center justify-between mb-4 mt-2">
                                 <div className="flex items-center">
@@ -207,14 +259,21 @@ export default function TripResultPage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-xl shadow p-6 border-2 border-transparent opacity-60 flex flex-col justify-center items-center">
+                        <div className="bg-gray-50 rounded-xl shadow p-6 border-2 border-transparent opacity-60 flex flex-col justify-center items-center">
                             <Bus className="h-8 w-8 text-gray-400 mb-2" />
-                            <p className="text-gray-500 font-medium">Bus path unavailable</p>
+                            {currentTrip.busAvailable === false ? (
+                                <>
+                                    <p className="text-gray-500 font-medium line-through">Bus</p>
+                                    <p className="text-red-500 font-semibold text-sm mt-1">⏰ Not enough time</p>
+                                </>
+                            ) : (
+                                <p className="text-gray-500 font-medium">Bus path unavailable</p>
+                            )}
                         </div>
                     )}
 
                     {/* Car Option */}
-                    {isCarAvailable ? (
+                    {isCarAvailable && currentTrip.carAvailable !== false ? (
                         <div 
                             onClick={() => isToggleable && setSelectedMode('car')}
                             className={`relative bg-white rounded-xl shadow p-6 border-2 transition-all duration-200 ${
@@ -222,16 +281,19 @@ export default function TripResultPage() {
                             } ${isToggleable ? 'cursor-pointer hover:shadow-md' : ''}`}
                         >
                             <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 flex space-x-1 whitespace-nowrap">
-                                {recommendedTransit === 'car' && (
+                                {isCarPassed ? (
+                                    <span className="bg-red-500 text-white px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center">
+                                        ⚠️ Passed
+                                    </span>
+                                ) : recommendedTransit === 'car' ? (
                                     <span className="bg-green-500 text-white px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center">
                                         <CheckCircle2 className="w-3 h-3 mr-1" /> Recommended
                                     </span>
-                                )}
-                                {actualSelectedMode === 'car' && recommendedTransit !== 'car' && (
+                                ) : actualSelectedMode === 'car' ? (
                                     <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center">
                                         <CheckCircle2 className="w-3 h-3 mr-1" /> Selected
                                     </span>
-                                )}
+                                ) : null}
                             </div>
                             <div className="flex items-center justify-between mb-4 mt-2">
                                 <div className="flex items-center">
@@ -248,9 +310,16 @@ export default function TripResultPage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-xl shadow p-6 border-2 border-transparent opacity-60 flex flex-col justify-center items-center">
+                        <div className="bg-gray-50 rounded-xl shadow p-6 border-2 border-transparent opacity-60 flex flex-col justify-center items-center">
                             <CarFront className="h-8 w-8 text-gray-400 mb-2" />
-                            <p className="text-gray-500 font-medium">No route</p>
+                            {currentTrip.carAvailable === false ? (
+                                <>
+                                    <p className="text-gray-500 font-medium line-through">Car / Uber</p>
+                                    <p className="text-red-500 font-semibold text-sm mt-1">⏰ Not enough time</p>
+                                </>
+                            ) : (
+                                <p className="text-gray-500 font-medium">Car path unavailable</p>
+                            )}
                         </div>
                     )}
                 </div>

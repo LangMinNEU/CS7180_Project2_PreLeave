@@ -6,6 +6,9 @@ import userRoutes from './routes/userRoutes';
 import authRoutes from './routes/authRoutes';
 import tripRoutes from './routes/tripRoutes';
 import autocompleteRoutes from './routes/autocompleteRoute';
+import pushRoutes from './routes/pushRoutes';
+import { startNotificationScheduler } from './services/notificationScheduler';
+import { startEtaRefreshScheduler } from './services/etaRefreshScheduler';
 
 dotenv.config();
 
@@ -25,6 +28,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/autocomplete', autocompleteRoutes);
+app.use('/api/push', pushRoutes);
 
 app.get('/health', (req, res) => {
     res.status(200).json({ success: true, data: { status: 'ok' } });
@@ -33,6 +37,8 @@ app.get('/health', (req, res) => {
 if (require.main === module) {
     app.listen(port, () => {
         console.log(`Server is running on port ${port}`);
+        startNotificationScheduler();
+        startEtaRefreshScheduler();
     });
 }
 

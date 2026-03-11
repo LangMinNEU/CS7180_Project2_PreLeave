@@ -30,6 +30,7 @@ describe('TripResultPage', () => {
 
     const createMockTrip = (overrides = {}) => {
         const mockDate = new Date();
+        mockDate.setDate(mockDate.getDate() + 1); // Set to tomorrow so times are in the future
         mockDate.setHours(17, 30, 0, 0);
         return {
             id: 'trip-123',

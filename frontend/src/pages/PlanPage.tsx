@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useForm, Path } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { useTripStore } from '../stores/tripStore';
@@ -15,12 +15,12 @@ interface Suggestion {
 export default function PlanPage() {
     const navigate = useNavigate();
     const addTrip = useTripStore((state) => state.addTrip);
-    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [formWarning, setFormWarning] = useState<string | null>(null);
+    const [formError, setFormError] = useState<string | null>(null);
 
     const {
         register,
         handleSubmit,
-        setError,
         setValue,
         formState: { errors, isSubmitting },
     } = useForm<PlanTripFormData>({
@@ -108,35 +108,52 @@ export default function PlanPage() {
         setValue('startAddress', suggestion.label, { shouldValidate: true });
         setStartQuery('');
         setShowStartDropdown(false);
+        setFormWarning(null);
+        setFormError(null);
     };
 
     const handleSelectDest = (suggestion: Suggestion) => {
         setValue('destAddress', suggestion.label, { shouldValidate: true });
         setDestQuery('');
         setShowDestDropdown(false);
+        setFormWarning(null);
+        setFormError(null);
     };
 
     const onSubmit = async (data: PlanTripFormData) => {
-        setSubmitError(null);
+        setFormWarning(null);
+        setFormError(null);
         try {
             const arrivalIsoString = new Date(`${data.arrivalDate}T${data.arrivalTime}`).toISOString();
+            
+            const arrivalDateTime = new Date(arrivalIsoString);
+            const now = new Date();
+            const diffMinutes = (arrivalDateTime.getTime() - now.getTime()) / 60000;
+            
+            if (diffMinutes <= 0) {
+                setFormError("Arrival time has already passed. Please select a future time.");
+                return; // block submission
+            }
+            if (diffMinutes < 15) {
+                setFormWarning("Note: Arrival time is very close. Some transit options may not be feasible.");
+            }
+
             const result = await addTrip({
                 startAddress: data.startAddress,
                 destAddress: data.destAddress,
                 arrivalTime: arrivalIsoString,
             });
             
-            if (result.success && result.data) {
+            if (!result.success) {
+                setFormError(result.error || "Failed to create trip");
+                return;
+            }
+
+            if (result.data) {
                 navigate(`/trip-result/${result.data.id}`, { state: { trip: result.data } });
-            } else {
-                if (result.field && (result.field === 'startAddress' || result.field === 'destAddress')) {
-                    setError(result.field as Path<PlanTripFormData>, { type: 'server', message: result.error });
-                } else {
-                    setSubmitError(result.error || 'An unexpected error occurred');
-                }
             }
         } catch (err: any) {
-            setSubmitError(err.message || 'An unexpected error occurred');
+            setFormError(err.message || 'An unexpected error occurred');
         }
     };
 
@@ -156,18 +173,43 @@ export default function PlanPage() {
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-                    {submitError && (
-                        <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-4">
-                            <div className="flex">
+                    {formError && (
+                        <div className="mb-4 bg-red-500 border border-red-600 rounded-md p-4">
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                    <span className="text-white text-base leading-none">❌</span>
+                                </div>
                                 <div className="ml-3">
-                                    <p className="text-sm text-red-600">
-                                        {submitError}
+                                    <p className="text-sm text-white font-medium">
+                                        {formError}
                                     </p>
                                 </div>
                             </div>
                         </div>
                     )}
-                    <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
+                    {formWarning && (
+                        <div className="mb-4 bg-yellow-100 border border-yellow-300 rounded-md p-4">
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                    <span className="text-yellow-800 text-base leading-none">⚠️</span>
+                                </div>
+                                <div className="ml-3">
+                                    <p className="text-sm text-yellow-800 font-medium whitespace-pre-wrap">
+                                        {formWarning}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <form 
+                        className="space-y-6" 
+                        onSubmit={handleSubmit(onSubmit)} 
+                        onChange={() => {
+                            setFormWarning(null);
+                            setFormError(null);
+                        }}
+                        noValidate
+                    >
 
                         <div ref={startDropdownRef} className="relative">
                             <label htmlFor="startAddress" className="block text-sm font-medium text-gray-700">

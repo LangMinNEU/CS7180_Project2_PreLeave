@@ -32,6 +32,9 @@ export interface Trip {
     carLeaveBy?: string | null;
     departureTime?: string | null;
     createdAt: string;
+    busAvailable?: boolean;
+    carAvailable?: boolean;
+    etaUpdatedAt?: string | null;
 }
 
 export interface GetTripsResponse {
@@ -84,5 +87,10 @@ export const updateTripTransit = async (id: string, mode: string): Promise<Singl
 
 export const deleteTrip = async (id: string): Promise<DeleteTripResponse> => {
     const response = await api.delete<DeleteTripResponse>(`/trips/${id}`);
+    return response.data;
+};
+
+export const refreshEta = async (id: string): Promise<SingleTripResponse> => {
+    const response = await api.post<SingleTripResponse>(`/trips/${id}/refresh-eta`);
     return response.data;
 };
