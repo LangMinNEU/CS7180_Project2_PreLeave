@@ -79,28 +79,59 @@ export default function HomePage() {
                                             <Clock className="mr-2 h-5 w-5 text-gray-400" />
                                             Arrive by: {new Date(trip.requiredArrivalTime).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
                                         </div>
-                                        {trip.departureTime && (
-                                            <div className="flex items-center text-sm text-red-600 font-medium">
-                                                <Navigation className="mr-2 h-4 w-4" />
-                                                Leave around: {new Date(trip.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </div>
-                                        )}
+
                                     </div>
-                                    <div className="mt-4 sm:mt-0 sm:ml-6 flex-shrink-0">
-                                        {trip.recommendedTransit && (
-                                            <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium capitalize ${trip.recommendedTransit === 'bus' ? 'bg-green-100 text-green-800' : 'bg-black text-white'
-                                                }`}>
-                                                {trip.recommendedTransit === 'bus' ? '🚌 Take Bus' : '🚗 Take Uber'}
-                                            </span>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={() => deleteTrip(trip.id)}
-                                            className="ml-4 inline-flex items-center p-1.5 border border-transparent text-sm font-medium rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                                            aria-label={`Delete trip to ${trip.destAddress}`}
-                                        >
-                                            <Trash2 className="h-5 w-5" />
-                                        </button>
+                                    <div className="mt-4 sm:mt-0 sm:ml-6 flex-shrink-0 flex items-center justify-between sm:justify-start w-full sm:w-auto">
+                                        <div className="flex space-x-4 mr-4 w-full sm:w-auto">
+                                            {/* Bus Card */}
+                                            {trip.busEtaMinutes ? (
+                                                <div className={`flex flex-col items-center justify-center p-3 rounded-lg border ${trip.recommendedTransit === 'bus' ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-gray-50'} w-32`}>
+                                                    <div className="text-xl mb-1">🚌</div>
+                                                    <div className="font-bold text-gray-900">{trip.busEtaMinutes} min</div>
+                                                    {trip.busLeaveBy && (
+                                                        <div className="text-xs text-gray-500 whitespace-nowrap">
+                                                            Leave {new Date(trip.busLeaveBy).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </div>
+                                                    )}
+                                                    {trip.recommendedTransit === 'bus' && (
+                                                        <div className="mt-1 text-[10px] uppercase tracking-wider font-bold text-green-700 flex items-center">
+                                                           <span className="mr-1">✓</span> Recommended
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 bg-gray-50 w-32 text-center text-gray-400">
+                                                    <div className="text-xl mb-1 opacity-50">🚌</div>
+                                                    <div className="text-xs italic">No route</div>
+                                                </div>
+                                            )}
+
+                                            {/* Car Card */}
+                                            <div className={`flex flex-col items-center justify-center p-3 rounded-lg border ${trip.recommendedTransit === 'car' ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-gray-50'} w-32`}>
+                                                <div className="text-xl mb-1">🚗</div>
+                                                <div className="font-bold text-gray-900">{trip.uberEtaMinutes || '...'} min</div>
+                                                {trip.carLeaveBy && (
+                                                    <div className="text-xs text-gray-500 whitespace-nowrap">
+                                                        Leave {new Date(trip.carLeaveBy).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                )}
+                                                {trip.recommendedTransit === 'car' && (
+                                                    <div className="mt-1 text-[10px] uppercase tracking-wider font-bold text-green-700 flex items-center">
+                                                        <span className="mr-1">✓</span> Recommended
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <button
+                                                type="button"
+                                                onClick={() => deleteTrip(trip.id)}
+                                                className="inline-flex items-center p-2 border border-transparent text-sm font-medium rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shrink-0 self-center"
+                                                aria-label={`Delete trip to ${trip.destAddress}`}
+                                            >
+                                                <Trash2 className="h-5 w-5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

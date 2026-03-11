@@ -13,9 +13,11 @@ export interface Trip {
     requiredArrivalTime: string;
     reminderLeadMinutes: number;
     status: 'pending' | 'reminded' | 'completed' | 'cancelled';
-    recommendedTransit?: 'bus' | 'uber' | null;
+    recommendedTransit?: 'bus' | 'car' | null;
     busEtaMinutes?: number | null;
     uberEtaMinutes?: number | null;
+    busLeaveBy?: string | null;
+    carLeaveBy?: string | null;
     departureTime?: string | null;
     createdAt: string;
 }

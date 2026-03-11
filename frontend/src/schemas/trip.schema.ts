@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const planTripSchema = z.object({
-    startAddress: z.string().min(5, 'Please enter a complete address').regex(/^(?=.*[a-zA-Z])(?=.*[0-9]).+$/, 'Please enter a valid street address (e.g., 123 Main St)'),
-    destAddress: z.string().min(5, 'Please enter a complete address').regex(/^(?=.*[a-zA-Z])(?=.*[0-9]).+$/, 'Please enter a valid street address (e.g., 123 Main St)'),
+    startAddress: z.string().min(5, 'Please enter a complete address'),
+    destAddress: z.string().min(5, 'Please enter a complete address'),
     arrivalDate: z.string().min(1, 'Arrival date is required'),
     arrivalTime: z.string().min(1, 'Arrival time is required'),
 }).superRefine((data, ctx) => {

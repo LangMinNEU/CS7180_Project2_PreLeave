@@ -31,6 +31,8 @@ model Trip {
   recommended_transit   String?  // bus | uber
   bus_eta_minutes       Int?
   uber_eta_minutes      Int?
+  bus_leave_by          DateTime?
+  car_leave_by          DateTime?
   departure_time        DateTime?
   created_at            DateTime @default(now())
 

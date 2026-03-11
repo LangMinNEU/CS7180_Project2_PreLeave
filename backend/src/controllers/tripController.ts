@@ -29,9 +29,11 @@ const mapTripToDto = (trip: any) => ({
     requiredArrivalTime: trip.required_arrival_time,
     reminderLeadMinutes: trip.reminder_lead_minutes,
     status: trip.status,
-    recommendedTransit: trip.recommended_transit,
+    recommendedTransit: trip.recommended_transit === 'uber' ? 'car' : trip.recommended_transit,
     busEtaMinutes: trip.bus_eta_minutes,
     uberEtaMinutes: trip.uber_eta_minutes,
+    busLeaveBy: trip.bus_leave_by,
+    carLeaveBy: trip.car_leave_by,
     departureTime: trip.departure_time,
     createdAt: trip.created_at,
 });
@@ -111,17 +113,21 @@ export const createTrip = async (req: AuthRequest, res: Response): Promise<void>
         // Determine recommended transit
         let recommendedTransit = 'car';
         if (busEtaMinutes > 0 && carEtaMinutes > 0) {
-            recommendedTransit = busEtaMinutes <= carEtaMinutes + 15 ? 'bus' : 'uber';
+            recommendedTransit = busEtaMinutes <= carEtaMinutes * 1.5 ? 'bus' : 'car';
         } else if (busEtaMinutes > 0) {
             recommendedTransit = 'bus';
         } else if (carEtaMinutes > 0) {
-            recommendedTransit = 'uber';
+            recommendedTransit = 'car';
         }
 
         const selectedEtaMinutes = recommendedTransit === 'bus' ? busEtaMinutes : carEtaMinutes;
 
         // Departure time calculation = Required Arrival Time - (Selected ETA + Buffer Minutes)
         const departureDate = new Date(arrivalDate.getTime() - selectedEtaMinutes * 60000 - 5 * 60000); // adding a 5 minute safety buffer
+        
+        // Calculate individual leave times (with 5 min buffer)
+        const busLeaveByDate = busEtaMinutes > 0 ? new Date(arrivalDate.getTime() - busEtaMinutes * 60000 - 5 * 60000) : null;
+        const carLeaveByDate = carEtaMinutes > 0 ? new Date(arrivalDate.getTime() - carEtaMinutes * 60000 - 5 * 60000) : null;
 
         const newTrip = await prisma.trip.create({
             data: {
@@ -138,6 +144,8 @@ export const createTrip = async (req: AuthRequest, res: Response): Promise<void>
                 recommended_transit: recommendedTransit,
                 bus_eta_minutes: busEtaMinutes,
                 uber_eta_minutes: carEtaMinutes,
+                bus_leave_by: busLeaveByDate,
+                car_leave_by: carLeaveByDate,
                 departure_time: departureDate,
             },
         });

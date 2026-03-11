@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm, Path } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { useTripStore } from '../stores/tripStore';
 import { planTripSchema, PlanTripFormData } from '../schemas/trip.schema';
 import { MapPin, Clock } from 'lucide-react';
+import api from '../services/api';
+
+interface Suggestion {
+    label: string;
+    address: any;
+}
 
 export default function PlanPage() {
     const navigate = useNavigate();
@@ -15,10 +21,100 @@ export default function PlanPage() {
         register,
         handleSubmit,
         setError,
+        setValue,
         formState: { errors, isSubmitting },
     } = useForm<PlanTripFormData>({
         resolver: zodResolver(planTripSchema),
     });
+
+    const [startQuery, setStartQuery] = useState('');
+    const [destQuery, setDestQuery] = useState('');
+    const [startSuggestions, setStartSuggestions] = useState<Suggestion[]>([]);
+    const [destSuggestions, setDestSuggestions] = useState<Suggestion[]>([]);
+    const [showStartDropdown, setShowStartDropdown] = useState(false);
+    const [showDestDropdown, setShowDestDropdown] = useState(false);
+    const [loadingStart, setLoadingStart] = useState(false);
+    const [loadingDest, setLoadingDest] = useState(false);
+
+    const startDropdownRef = useRef<HTMLDivElement>(null);
+    const destDropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (startDropdownRef.current && !startDropdownRef.current.contains(event.target as Node)) {
+                setShowStartDropdown(false);
+            }
+            if (destDropdownRef.current && !destDropdownRef.current.contains(event.target as Node)) {
+                setShowDestDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            if (startQuery.length < 3) {
+                setStartSuggestions([]);
+                return;
+            }
+            setLoadingStart(true);
+            try {
+                const res = await api.get(`/autocomplete?q=${encodeURIComponent(startQuery)}`);
+                if (res.data.success) {
+                    setStartSuggestions(res.data.data);
+                }
+            } catch (err) {
+                console.error('Autocomplete error:', err);
+            } finally {
+                setLoadingStart(false);
+            }
+        };
+
+        const timeoutId = setTimeout(() => {
+            fetchSuggestions();
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [startQuery]);
+
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            if (destQuery.length < 3) {
+                setDestSuggestions([]);
+                return;
+            }
+            setLoadingDest(true);
+            try {
+                const res = await api.get(`/autocomplete?q=${encodeURIComponent(destQuery)}`);
+                if (res.data.success) {
+                    setDestSuggestions(res.data.data);
+                }
+            } catch (err) {
+                console.error('Autocomplete error:', err);
+            } finally {
+                setLoadingDest(false);
+            }
+        };
+
+        const timeoutId = setTimeout(() => {
+            fetchSuggestions();
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [destQuery]);
+
+    const handleSelectStart = (suggestion: Suggestion) => {
+        setValue('startAddress', suggestion.label, { shouldValidate: true });
+        setStartQuery('');
+        setShowStartDropdown(false);
+    };
+
+    const handleSelectDest = (suggestion: Suggestion) => {
+        setValue('destAddress', suggestion.label, { shouldValidate: true });
+        setDestQuery('');
+        setShowDestDropdown(false);
+    };
 
     const onSubmit = async (data: PlanTripFormData) => {
         setSubmitError(null);
@@ -43,6 +139,9 @@ export default function PlanPage() {
             setSubmitError(err.message || 'An unexpected error occurred');
         }
     };
+
+    const { onChange: formStartChange, ...startRest } = register('startAddress');
+    const { onChange: formDestChange, ...destRest } = register('destAddress');
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col py-12 sm:px-6 lg:px-8">
@@ -70,7 +169,7 @@ export default function PlanPage() {
                     )}
                     <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
 
-                        <div>
+                        <div ref={startDropdownRef} className="relative">
                             <label htmlFor="startAddress" className="block text-sm font-medium text-gray-700">
                                 Start Address
                             </label>
@@ -81,18 +180,52 @@ export default function PlanPage() {
                                 <input
                                     id="startAddress"
                                     type="text"
+                                    autoComplete="off"
                                     placeholder="e.g. 123 Main St"
-                                    className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm text-gray-900 border-gray-300 rounded-md py-2 px-3 border ${errors.startAddress ? 'border-red-300' : ''
-                                        }`}
-                                    {...register('startAddress')}
+                                    className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm text-gray-900 border-gray-300 rounded-md py-2 px-3 border ${errors.startAddress ? 'border-red-300' : ''}`}
+                                    {...startRest}
+                                    onChange={(e) => {
+                                        formStartChange(e);
+                                        setStartQuery(e.target.value);
+                                        setShowStartDropdown(true);
+                                    }}
                                 />
                             </div>
+                            
+                            {showStartDropdown && (startQuery.length >= 3) && (
+                                <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
+                                    {loadingStart ? (
+                                        <div className="px-4 py-3 text-sm text-gray-500 flex items-center justify-center">
+                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Loading suggestions...
+                                        </div>
+                                    ) : startSuggestions.length > 0 ? (
+                                        <ul className="max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                                            {startSuggestions.map((suggestion, idx) => (
+                                                <li
+                                                    key={idx}
+                                                    onClick={() => handleSelectStart(suggestion)}
+                                                    className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100 text-gray-900"
+                                                >
+                                                    <span className="block truncate">{suggestion.label}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <div className="px-4 py-2 text-sm text-gray-500">No matching addresses found.</div>
+                                    )}
+                                </div>
+                            )}
+
                             {errors.startAddress && (
                                 <p className="mt-2 text-sm text-red-600">{errors.startAddress.message}</p>
                             )}
                         </div>
 
-                        <div>
+                        <div ref={destDropdownRef} className="relative">
                             <label htmlFor="destAddress" className="block text-sm font-medium text-gray-700">
                                 Destination Address
                             </label>
@@ -103,12 +236,46 @@ export default function PlanPage() {
                                 <input
                                     id="destAddress"
                                     type="text"
+                                    autoComplete="off"
                                     placeholder="e.g. 456 Work Ave"
-                                    className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm text-gray-900 border-gray-300 rounded-md py-2 px-3 border ${errors.destAddress ? 'border-red-300' : ''
-                                        }`}
-                                    {...register('destAddress')}
+                                    className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm text-gray-900 border-gray-300 rounded-md py-2 px-3 border ${errors.destAddress ? 'border-red-300' : ''}`}
+                                    {...destRest}
+                                    onChange={(e) => {
+                                        formDestChange(e);
+                                        setDestQuery(e.target.value);
+                                        setShowDestDropdown(true);
+                                    }}
                                 />
                             </div>
+                            
+                            {showDestDropdown && (destQuery.length >= 3) && (
+                                <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
+                                    {loadingDest ? (
+                                        <div className="px-4 py-3 text-sm text-gray-500 flex items-center justify-center">
+                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Loading suggestions...
+                                        </div>
+                                    ) : destSuggestions.length > 0 ? (
+                                        <ul className="max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                                            {destSuggestions.map((suggestion, idx) => (
+                                                <li
+                                                    key={idx}
+                                                    onClick={() => handleSelectDest(suggestion)}
+                                                    className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100 text-gray-900"
+                                                >
+                                                    <span className="block truncate">{suggestion.label}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <div className="px-4 py-2 text-sm text-gray-500">No matching addresses found.</div>
+                                    )}
+                                </div>
+                            )}
+
                             {errors.destAddress && (
                                 <p className="mt-2 text-sm text-red-600">{errors.destAddress.message}</p>
                             )}
@@ -125,8 +292,7 @@ export default function PlanPage() {
                                 <input
                                     id="arrivalDate"
                                     type="date"
-                                    className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm text-gray-900 border-gray-300 rounded-md py-2 px-3 border ${errors.arrivalDate ? 'border-red-300' : ''
-                                        }`}
+                                    className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm text-gray-900 border-gray-300 rounded-md py-2 px-3 border ${errors.arrivalDate ? 'border-red-300' : ''}`}
                                     {...register('arrivalDate')}
                                 />
                             </div>
@@ -146,8 +312,7 @@ export default function PlanPage() {
                                 <input
                                     id="arrivalTime"
                                     type="time"
-                                    className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm text-gray-900 border-gray-300 rounded-md py-2 px-3 border ${errors.arrivalTime ? 'border-red-300' : ''
-                                        }`}
+                                    className={`focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm text-gray-900 border-gray-300 rounded-md py-2 px-3 border ${errors.arrivalTime ? 'border-red-300' : ''}`}
                                     {...register('arrivalTime')}
                                 />
                             </div>

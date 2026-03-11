@@ -126,9 +126,9 @@ describe('Trip Controller Integration', () => {
                 .post('/api/trips')
                 .send(payload);
 
-            expect(response.status).toBe(500);
+            expect(response.status).toBe(400);
             expect(response.body.success).toBe(false);
-            expect(response.body.error).toBe('Failed to find routes');
+            expect(response.body.error).toBe('No route found between the two addresses. Please check your addresses and try again.');
             expect(prisma.trip.create).not.toHaveBeenCalled();
         });
     });
