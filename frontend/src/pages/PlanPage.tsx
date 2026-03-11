@@ -126,8 +126,8 @@ export default function PlanPage() {
                 arrivalTime: arrivalIsoString,
             });
             
-            if (result.success) {
-                navigate('/homepage');
+            if (result.success && result.data) {
+                navigate(`/trip-result/${result.data.id}`, { state: { trip: result.data } });
             } else {
                 if (result.field && (result.field === 'startAddress' || result.field === 'destAddress')) {
                     setError(result.field as Path<PlanTripFormData>, { type: 'server', message: result.error });

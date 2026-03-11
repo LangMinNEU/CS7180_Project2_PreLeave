@@ -24,8 +24,10 @@ export interface Trip {
     reminderLeadMinutes: number;
     status: 'pending' | 'reminded' | 'completed' | 'cancelled';
     recommendedTransit?: 'bus' | 'car' | null;
+    selectedTransit?: 'bus' | 'car' | null;
     busEtaMinutes?: number | null;
-    uberEtaMinutes?: number | null;
+    carEtaMinutes?: number | null;
+    bufferMinutes?: number;
     busLeaveBy?: string | null;
     carLeaveBy?: string | null;
     departureTime?: string | null;
@@ -38,6 +40,12 @@ export interface GetTripsResponse {
         upcoming: Trip[];
         history: Trip[];
     };
+    error?: string;
+}
+
+export interface SingleTripResponse {
+    success: boolean;
+    data?: Trip;
     error?: string;
 }
 
@@ -59,8 +67,18 @@ export const getTrips = async (): Promise<GetTripsResponse> => {
     return response.data;
 };
 
+export const getTrip = async (id: string): Promise<SingleTripResponse> => {
+    const response = await api.get<SingleTripResponse>(`/trips/${id}`);
+    return response.data;
+};
+
 export const createTrip = async (data: CreateTripDto): Promise<CreateTripResponse> => {
     const response = await api.post<CreateTripResponse>('/trips', data);
+    return response.data;
+};
+
+export const updateTripTransit = async (id: string, mode: string): Promise<SingleTripResponse> => {
+    const response = await api.patch<SingleTripResponse>(`/trips/${id}/transit`, { mode });
     return response.data;
 };
 

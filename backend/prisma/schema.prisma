@@ -29,6 +29,7 @@ model Trip {
   reminder_lead_minutes Int      @default(60)
   status                String   @default("pending") // pending | reminded | completed | cancelled
   recommended_transit   String?  // bus | uber
+  selected_transit      String?  // bus | car
   bus_eta_minutes       Int?
   uber_eta_minutes      Int?
   bus_leave_by          DateTime?

@@ -14,8 +14,10 @@ export interface Trip {
     reminderLeadMinutes: number;
     status: 'pending' | 'reminded' | 'completed' | 'cancelled';
     recommendedTransit?: 'bus' | 'car' | null;
+    selectedTransit?: 'bus' | 'car' | null;
     busEtaMinutes?: number | null;
-    uberEtaMinutes?: number | null;
+    carEtaMinutes?: number | null;
+    bufferMinutes?: number;
     busLeaveBy?: string | null;
     carLeaveBy?: string | null;
     departureTime?: string | null;
@@ -25,16 +27,20 @@ export interface Trip {
 interface TripState {
     upcomingTrips: Trip[];
     historyTrips: Trip[];
+    currentTrip: Trip | null;
     isLoading: boolean;
     error: string | null;
     fetchTrips: () => Promise<void>;
-    addTrip: (tripData: Omit<Trip, 'id' | 'createdAt' | 'status' | 'userId' | 'requiredArrivalTime' | 'reminderLeadMinutes'> & { arrivalTime: string, reminderLeadMinutes?: number }) => Promise<{ success: boolean; error?: string; field?: string }>;
+    fetchTrip: (id: string) => Promise<void>;
+    selectTransit: (id: string, mode: string) => Promise<void>;
+    addTrip: (tripData: Omit<Trip, 'id' | 'createdAt' | 'status' | 'userId' | 'requiredArrivalTime' | 'reminderLeadMinutes'> & { arrivalTime: string, reminderLeadMinutes?: number }) => Promise<{ success: boolean; error?: string; field?: string; data?: Trip }>;
     deleteTrip: (id: string) => Promise<void>;
 }
 
 export const useTripStore = create<TripState>((set) => ({
     upcomingTrips: [],
     historyTrips: [],
+    currentTrip: null,
     isLoading: false,
     error: null,
     fetchTrips: async () => {
@@ -54,6 +60,34 @@ export const useTripStore = create<TripState>((set) => ({
             set({ error: err.response?.data?.error || 'Failed to fetch trips', isLoading: false });
         }
     },
+    fetchTrip: async (id: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const response = await tripService.getTrip(id);
+            if (response.success && response.data) {
+                set({ currentTrip: response.data, isLoading: false });
+            } else {
+                set({ error: response.error || 'Failed to fetch trip details', isLoading: false });
+            }
+        } catch (err: any) {
+            set({ error: err.response?.data?.error || 'Failed to fetch trip details', isLoading: false });
+        }
+    },
+    selectTransit: async (id: string, mode: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const response = await tripService.updateTripTransit(id, mode);
+            if (response.success && response.data) {
+                set({ currentTrip: response.data, isLoading: false });
+                const store = useTripStore.getState();
+                await store.fetchTrips();
+            } else {
+                set({ error: response.error || 'Failed to update transit mode', isLoading: false });
+            }
+        } catch (err: any) {
+            set({ error: err.response?.data?.error || 'Failed to update transit mode', isLoading: false });
+        }
+    },
     addTrip: async (tripData) => {
         set({ isLoading: true, error: null });
         try {
@@ -65,10 +99,10 @@ export const useTripStore = create<TripState>((set) => ({
             });
             if (response.success && response.data) {
                 // To keep it simple, just re-fetch all trips after adding instead of doing logic locally
-                set({ isLoading: false });
+                set({ isLoading: false, currentTrip: response.data });
                 const store = useTripStore.getState();
                 await store.fetchTrips();
-                return { success: true };
+                return { success: true, data: response.data };
             } else {
                 set({ error: response.error || 'Failed to create trip', isLoading: false });
                 return { success: false, error: response.error || 'Failed to create trip', field: response.field };

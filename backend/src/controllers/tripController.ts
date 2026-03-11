@@ -30,8 +30,10 @@ const mapTripToDto = (trip: any) => ({
     reminderLeadMinutes: trip.reminder_lead_minutes,
     status: trip.status,
     recommendedTransit: trip.recommended_transit === 'uber' ? 'car' : trip.recommended_transit,
+    selectedTransit: trip.selected_transit === 'uber' ? 'car' : trip.selected_transit,
     busEtaMinutes: trip.bus_eta_minutes,
-    uberEtaMinutes: trip.uber_eta_minutes,
+    carEtaMinutes: trip.uber_eta_minutes,
+    bufferMinutes: 5,
     busLeaveBy: trip.bus_leave_by,
     carLeaveBy: trip.car_leave_by,
     departureTime: trip.departure_time,
@@ -203,6 +205,93 @@ export const getTrips = async (req: AuthRequest, res: Response): Promise<void> =
     } catch (error) {
         console.error('Get trips error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+};
+
+export const getTripById = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.userId;
+        const tripId = req.params.id;
+
+        if (!userId) {
+            res.status(401).json({ success: false, error: 'Unauthorized' });
+            return;
+        }
+
+        const trip = await prisma.trip.findUnique({
+            where: { id: tripId },
+        });
+
+        if (!trip) {
+            res.status(404).json({ success: false, error: 'Trip not found' });
+            return;
+        }
+
+        if (trip.user_id !== userId) {
+            res.status(403).json({ success: false, error: 'Forbidden' });
+            return;
+        }
+
+        res.status(200).json({ success: true, data: mapTripToDto(trip) });
+    } catch (error) {
+        console.error('Get trip by ID error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+};
+
+const updateTripTransitSchema = z.object({
+    mode: z.enum(['bus', 'car']),
+});
+
+export const updateTripTransitMode = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.userId;
+        const tripId = req.params.id;
+
+        if (!userId) {
+            res.status(401).json({ success: false, error: 'Unauthorized' });
+            return;
+        }
+
+        const validatedData = updateTripTransitSchema.parse(req.body);
+
+        const trip = await prisma.trip.findUnique({
+            where: { id: tripId },
+        });
+
+        if (!trip) {
+            res.status(404).json({ success: false, error: 'Trip not found' });
+            return;
+        }
+
+        if (trip.user_id !== userId) {
+            res.status(403).json({ success: false, error: 'Forbidden' });
+            return;
+        }
+
+        let newDepartureTime = trip.departure_time;
+        if (validatedData.mode === 'bus' && trip.bus_leave_by) {
+            newDepartureTime = trip.bus_leave_by;
+        } else if (validatedData.mode === 'car' && trip.car_leave_by) {
+            newDepartureTime = trip.car_leave_by;
+        }
+
+        const updatedTrip = await prisma.trip.update({
+            where: { id: tripId },
+            data: {
+                selected_transit: validatedData.mode,
+                departure_time: newDepartureTime,
+            },
+        });
+
+        res.status(200).json({ success: true, data: mapTripToDto(updatedTrip) });
+    } catch (error: any) {
+        if (error instanceof z.ZodError) {
+            res.status(400).json({ success: false, error: 'Validation failed', details: error.errors });
+        } else {
+            console.error('Update trip transit mode error:', error);
+            res.status(500).json({ success: false, error: 'Internal server error' });
+        }
     }
 };
 

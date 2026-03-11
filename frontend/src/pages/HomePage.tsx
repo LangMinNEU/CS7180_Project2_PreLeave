@@ -109,7 +109,7 @@ export default function HomePage() {
                                             {/* Car Card */}
                                             <div className={`flex flex-col items-center justify-center p-3 rounded-lg border ${trip.recommendedTransit === 'car' ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-gray-50'} w-32`}>
                                                 <div className="text-xl mb-1">🚗</div>
-                                                <div className="font-bold text-gray-900">{trip.uberEtaMinutes || '...'} min</div>
+                                                <div className="font-bold text-gray-900">{trip.carEtaMinutes || '...'} min</div>
                                                 {trip.carLeaveBy && (
                                                     <div className="text-xs text-gray-500 whitespace-nowrap">
                                                         Leave {new Date(trip.carLeaveBy).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
