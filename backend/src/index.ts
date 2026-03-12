@@ -24,11 +24,17 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/trips', tripRoutes);
-app.use('/api/autocomplete', autocompleteRoutes);
-app.use('/api/push', pushRoutes);
+// app.use('/api/auth', authRoutes);
+// app.use('/api/users', userRoutes);
+// app.use('/api/trips', tripRoutes);
+// app.use('/api/autocomplete', autocompleteRoutes);
+// app.use('/api/push', pushRoutes);
+
+app.use('/auth', authRoutes);
+app.use('/users', userRoutes);
+app.use('/trips', tripRoutes);
+app.use('/autocomplete', autocompleteRoutes);
+app.use('/push', pushRoutes);
 
 app.get('/health', (req, res) => {
     res.status(200).json({ success: true, data: { status: 'ok' } });
