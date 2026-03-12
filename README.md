@@ -3,7 +3,7 @@
 > A full-stack web app that tells you exactly when to leave and how to get there, before you're already late.
 
 **Live Demo**
-- 🌐 Frontend: [https://frontend-7njgquzbu-hansama0902s-projects.vercel.app](https://frontend-7njgquzbu-hansama0902s-projects.vercel.app)
+- 🌐 Frontend: [https://cs-7180-project2-preleave.vercel.app](https://cs-7180-project2-preleave.vercel.app)
 - 🚀 Backend API: [https://cs7180project2preleave-production-6b29.up.railway.app](https://cs7180project2preleave-production-6b29.up.railway.app)
 
 ---
