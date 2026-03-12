@@ -4,7 +4,7 @@
 
 **Live Demo**
 - 🌐 Frontend: [https://cs-7180-project2-preleave.vercel.app](https://cs-7180-project2-preleave.vercel.app)
-- 🚀 Backend API: [https://cs7180project2preleave-production-6b29.up.railway.app](https://cs7180project2preleave-production-6b29.up.railway.app)
+- 🚀 Backend API: [https://cs7180project2preleave-production.up.railway.app](https://cs7180project2preleave-production.up.railway.app)
 
 ---
 
