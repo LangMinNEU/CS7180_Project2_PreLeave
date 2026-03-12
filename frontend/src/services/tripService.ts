@@ -94,3 +94,8 @@ export const refreshEta = async (id: string): Promise<SingleTripResponse> => {
     const response = await api.post<SingleTripResponse>(`/trips/${id}/refresh-eta`);
     return response.data;
 };
+
+export const completeTrip = async (id: string): Promise<SingleTripResponse> => {
+    const response = await api.patch<SingleTripResponse>(`/trips/${id}/complete`);
+    return response.data;
+};

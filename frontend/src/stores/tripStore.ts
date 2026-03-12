@@ -40,6 +40,7 @@ interface TripState {
     addTrip: (tripData: Omit<Trip, 'id' | 'createdAt' | 'status' | 'userId' | 'requiredArrivalTime' | 'reminderLeadMinutes'> & { arrivalTime: string, reminderLeadMinutes?: number }) => Promise<{ success: boolean; error?: string; field?: string; data?: Trip }>;
     deleteTrip: (id: string) => Promise<void>;
     refreshEta: (id: string) => Promise<void>;
+    completeTrip: (id: string) => Promise<void>;
 }
 
 export const useTripStore = create<TripState>((set) => ({
@@ -159,6 +160,39 @@ export const useTripStore = create<TripState>((set) => ({
             }
         } catch (error: any) {
             console.error('Failed to refresh ETA:', error);
+        }
+    },
+    completeTrip: async (id: string) => {
+        // 1. Snapshot the trip before touching state
+        const tripToComplete = useTripStore.getState().upcomingTrips.find((t) => t.id === id);
+        if (!tripToComplete) return;
+
+        // 2. Optimistic update: immediately move trip to history in local state
+        const completedTrip = { ...tripToComplete, status: 'completed' as const };
+        set((state) => ({
+            upcomingTrips: state.upcomingTrips.filter((t) => t.id !== id),
+            historyTrips: [completedTrip, ...state.historyTrips],
+        }));
+
+        try {
+            const response = await tripService.completeTrip(id);
+            if (!response.success) {
+                // Revert on API-level failure
+                console.error('Complete trip failed:', response.error);
+                set((state) => ({
+                    upcomingTrips: [tripToComplete, ...state.upcomingTrips],
+                    historyTrips: state.historyTrips.filter((t) => t.id !== id),
+                    error: response.error || 'Failed to complete trip',
+                }));
+            }
+        } catch (error: any) {
+            // Revert on network/exception failure
+            console.error('Complete trip exception:', error);
+            set((state) => ({
+                upcomingTrips: [tripToComplete, ...state.upcomingTrips],
+                historyTrips: state.historyTrips.filter((t) => t.id !== id),
+                error: 'Failed to complete trip — please try again',
+            }));
         }
     },
 }));

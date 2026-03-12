@@ -1,16 +1,17 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserCircle, Plus, MapPin, Clock, Navigation, Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { UserCircle, Plus, MapPin, Clock, Navigation, Trash2, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useTripStore } from '../stores/tripStore';
 import OnScreenAlert from '../components/OnScreenAlert';
 
 export default function HomePage() {
     const navigate = useNavigate();
-    const { upcomingTrips, isLoading, deleteTrip } = useTripStore();
+    const { upcomingTrips, isLoading, deleteTrip, completeTrip } = useTripStore();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [refreshingTrips, setRefreshingTrips] = useState<Record<string, boolean>>({});
+    const [completingTrips, setCompletingTrips] = useState<Record<string, boolean>>({});
     const [pollingError, setPollingError] = useState(false);
-    const fetchIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const fetchIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const consecutiveErrorsRef = useRef(0);
 
     const handleRefresh = async (tripId: string) => {
@@ -21,6 +22,17 @@ export default function HomePage() {
             console.error('Failed to refresh ETA:', error);
         } finally {
             setRefreshingTrips((prev) => ({ ...prev, [tripId]: false }));
+        }
+    };
+
+    const handleComplete = async (tripId: string) => {
+        setCompletingTrips((prev) => ({ ...prev, [tripId]: true }));
+        try {
+            await completeTrip(tripId);
+        } catch (error) {
+            console.error('Failed to complete trip:', error);
+        } finally {
+            setCompletingTrips((prev) => ({ ...prev, [tripId]: false }));
         }
     };
 
@@ -296,6 +308,16 @@ export default function HomePage() {
                                                     )}
                                                 </div>
                                                 <div className="flex items-center space-x-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleComplete(trip.id)}
+                                                        disabled={completingTrips[trip.id]}
+                                                        className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shrink-0 self-center disabled:opacity-50 transition-colors gap-1"
+                                                        aria-label={`Complete trip to ${trip.destAddress}`}
+                                                    >
+                                                        <CheckCircle className={`h-4 w-4 ${completingTrips[trip.id] ? 'animate-spin' : ''}`} />
+                                                        Complete
+                                                    </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => handleRefresh(trip.id)}

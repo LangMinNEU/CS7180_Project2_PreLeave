@@ -291,16 +291,15 @@ export const getTrips = async (req: AuthRequest, res: Response): Promise<void> =
         const history: any[] = [];
 
         trips.forEach((trip) => {
-            if (trip.required_arrival_time > cutoff) {
+            // A manually completed trip always goes to history, regardless of arrival time
+            if (trip.status === 'completed' || trip.status === 'cancelled') {
+                history.push(mapTripToDto(trip));
+            } else if (trip.required_arrival_time > cutoff) {
                 upcoming.push(mapTripToDto(trip));
             } else {
-                // If it's passed its arrival time, mark as completed (in memory here, or DB update later)
-                if (trip.status === 'pending' || trip.status === 'reminded') {
-                    trip.status = 'completed';
-                    // We don't necessarily need to await the DB update right here for the read query
-                    // but it would be good to update it. We can do it asynchronously.
-                    prisma.trip.update({ where: { id: trip.id }, data: { status: 'completed' } }).catch(console.error);
-                }
+                // Arrival time has passed — auto-mark as completed
+                trip.status = 'completed';
+                prisma.trip.update({ where: { id: trip.id }, data: { status: 'completed' } }).catch(console.error);
                 history.push(mapTripToDto(trip));
             }
         });
@@ -380,6 +379,42 @@ export const deleteTrip = async (req: AuthRequest, res: Response): Promise<void>
         res.status(200).json({ success: true, data: { id: tripId } });
     } catch (error) {
         console.error('Delete trip error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+};
+
+export const completeTrip = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.userId;
+        const tripId = req.params.id;
+
+        if (!userId) {
+            res.status(401).json({ success: false, error: 'Unauthorized' });
+            return;
+        }
+
+        const trip = await prisma.trip.findUnique({
+            where: { id: tripId },
+        });
+
+        if (!trip) {
+            res.status(404).json({ success: false, error: 'Trip not found' });
+            return;
+        }
+
+        if (trip.user_id !== userId) {
+            res.status(403).json({ success: false, error: 'Forbidden' });
+            return;
+        }
+
+        const updatedTrip = await prisma.trip.update({
+            where: { id: tripId },
+            data: { status: 'completed' },
+        });
+
+        res.status(200).json({ success: true, data: mapTripToDto(updatedTrip) });
+    } catch (error) {
+        console.error('Complete trip error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 };
