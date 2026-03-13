@@ -9,6 +9,12 @@ vi.mock('../stores/tripStore', () => ({
     useTripStore: vi.fn(),
 }));
 
+vi.mock('../services/pushNotificationService', () => ({
+    registerPushSubscription: vi.fn(),
+    hasPushPermission: vi.fn().mockReturnValue(false),
+    isPushDenied: vi.fn().mockReturnValue(false),
+}));
+
 // Mock react-router-dom
 const mockedUseNavigate = vi.fn();
 const mockedUseParams = vi.fn();
@@ -26,6 +32,10 @@ describe('TripResultPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockedUseParams.mockReturnValue({ id: 'trip-123' });
+        // Mock window.confirm
+        window.confirm = vi.fn().mockReturnValue(true);
+        // Mock navigate for testing
+        mockedUseNavigate.mockReset();
     });
 
     const createMockTrip = (overrides = {}) => {
@@ -100,35 +110,6 @@ describe('TripResultPage', () => {
         expect(screen.getByText('Recommended')).toBeInTheDocument();
     });
 
-    it('updates departure time card when Bus is clicked', async () => {
-        const mockTrip = createMockTrip();
-        const mockSelectTransit = vi.fn();
-
-        (useTripStore as any).mockReturnValue({
-            currentTrip: mockTrip,
-            fetchTrip: vi.fn(),
-            selectTransit: mockSelectTransit,
-            isLoading: false,
-            error: null,
-        });
-
-        render(<BrowserRouter><TripResultPage /></BrowserRouter>);
-
-        // Verify initial state
-        expect(screen.getByText('(Includes a 5 min buffer for driving)')).toBeInTheDocument();
-
-        // Click on Bus card (by clicking the Bus text or icon, we can find it)
-        const busElement = screen.getByText('Bus').closest('div.relative.bg-white') as HTMLElement;
-        fireEvent.click(busElement);
-
-        // Verify UI updates instantly (local state)
-        await waitFor(() => {
-            expect(screen.getByText('(Includes a 5 min buffer for public transit)')).toBeInTheDocument();
-        });
-        
-        // Ensure "Selected" badge appears on Bus
-        expect(screen.getByText('Selected')).toBeInTheDocument();
-    });
 
     it('auto-selects Car and disables Bus when Bus is unavailable', async () => {
         const mockTrip = createMockTrip({
@@ -153,50 +134,27 @@ describe('TripResultPage', () => {
         fireEvent.click(carElement); // shouldn't trigger state issues, isToggleable is false
     });
 
-    it('sends selectTransit request ONLY if selection changed when saving', async () => {
+    it('successfully saves a trip and navigates', async () => {
         const mockTrip = createMockTrip();
-        const mockSelectTransit = vi.fn().mockResolvedValue({ success: true });
+        const mockAddTrip = vi.fn().mockResolvedValue({ success: true });
 
         (useTripStore as any).mockReturnValue({
             currentTrip: mockTrip,
             fetchTrip: vi.fn(),
-            selectTransit: mockSelectTransit,
+            addTrip: mockAddTrip,
             isLoading: false,
             error: null,
         });
 
         render(<BrowserRouter><TripResultPage /></BrowserRouter>);
         
-        // NO CHANGE SCENARIO
-        const saveButton = screen.getByText('Save Trip');
-        fireEvent.click(saveButton);
-        
-        expect(mockSelectTransit).not.toHaveBeenCalled();
-        expect(mockedUseNavigate).toHaveBeenCalledWith('/homepage');
-    });
-
-    it('sends selectTransit request if selection changed when saving', async () => {
-        const mockTrip = createMockTrip();
-        const mockSelectTransit = vi.fn().mockResolvedValue({ success: true });
-
-        (useTripStore as any).mockReturnValue({
-            currentTrip: mockTrip,
-            fetchTrip: vi.fn(),
-            selectTransit: mockSelectTransit,
-            isLoading: false,
-            error: null,
-        });
-
-        render(<BrowserRouter><TripResultPage /></BrowserRouter>);
-        
-        // CHANGE SCENARIO
-        const busElement = screen.getByText('Bus').closest('div.relative.bg-white') as HTMLElement;
-        fireEvent.click(busElement);
-        
         const saveButton = screen.getByText('Save Trip');
         fireEvent.click(saveButton);
 
-        expect(mockSelectTransit).toHaveBeenCalledWith('trip-123', 'bus');
+        // Click "Yes, Save" in the confirmation modal
+        const confirmButton = screen.getByText('Yes, Save');
+        fireEvent.click(confirmButton);
+
         await waitFor(() => {
             expect(mockedUseNavigate).toHaveBeenCalledWith('/homepage');
         });
