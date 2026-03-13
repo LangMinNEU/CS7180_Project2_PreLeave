@@ -46,6 +46,7 @@ describe('tripStore', () => {
         it('sets error when response success is false', async () => {
             vi.mocked(tripService.getTrips).mockResolvedValueOnce({
                 success: false,
+                data: { upcoming: [], history: [] },
                 error: 'Failed to fetch',
             });
 

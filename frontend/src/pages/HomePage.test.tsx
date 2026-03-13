@@ -198,7 +198,7 @@ describe('HomePage', () => {
             completeTrip: vi.fn(),
             isLoading: false,
         });
-        (useTripStore as { getState: () => { refreshEta: typeof mockRefreshEta } }).getState = () => ({
+        (useTripStore as unknown as { getState: () => { refreshEta: typeof mockRefreshEta; fetchTrips: () => void } }).getState = () => ({
             refreshEta: mockRefreshEta,
             fetchTrips: vi.fn(),
         });

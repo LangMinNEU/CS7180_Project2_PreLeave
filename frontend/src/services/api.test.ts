@@ -32,7 +32,7 @@ describe('api', () => {
             setAccessToken: vi.fn(),
         } as any);
 
-        const requestHandler = api.interceptors.request.handlers[0]?.fulfilled;
+        const requestHandler = api.interceptors.request.handlers?.[0]?.fulfilled;
         expect(requestHandler).toBeDefined();
         const config: any = { headers: {} };
         const result = await requestHandler!(config);
@@ -48,7 +48,7 @@ describe('api', () => {
             setAccessToken: vi.fn(),
         } as any);
 
-        const requestHandler = api.interceptors.request.handlers[0]?.fulfilled;
+        const requestHandler = api.interceptors.request.handlers?.[0]?.fulfilled;
         const config: any = { headers: {} };
         const result = await requestHandler!(config);
         expect(result.headers.Authorization).toBeUndefined();
@@ -67,7 +67,7 @@ describe('api', () => {
         const err401 = Object.assign(new Error('Unauthorized'), {
             response: { status: 401 },
         });
-        const responseHandlers = api.interceptors.response.handlers;
+        const responseHandlers = api.interceptors.response.handlers ?? [];
         const rejected = responseHandlers[responseHandlers.length - 1]?.rejected;
         expect(rejected).toBeDefined();
 
