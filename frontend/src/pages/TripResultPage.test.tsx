@@ -40,7 +40,7 @@ describe('TripResultPage', () => {
 
     const createMockTrip = (overrides = {}) => {
         const mockDate = new Date();
-        mockDate.setDate(mockDate.getDate() + 1); // Set to tomorrow so times are in the future
+        mockDate.setDate(mockDate.getDate() + 1);
         mockDate.setHours(17, 30, 0, 0);
         return {
             id: 'trip-123',
@@ -58,44 +58,47 @@ describe('TripResultPage', () => {
         };
     };
 
-    it('renders loading state initially', () => {
+    const mockStoreWith = (overrides = {}) => {
         (useTripStore as any).mockReturnValue({
             currentTrip: null,
             fetchTrip: vi.fn(),
-            selectTransit: vi.fn(),
-            isLoading: true,
+            addTrip: vi.fn(),
+            isLoading: false,
             error: null,
+            ...overrides,
         });
+        // Also mock the selector form used for addTrip
+        (useTripStore as any).mockImplementation((selector?: any) => {
+            const state = {
+                currentTrip: null,
+                fetchTrip: vi.fn(),
+                addTrip: vi.fn(),
+                isLoading: false,
+                error: null,
+                ...overrides,
+            };
+            return selector ? selector(state) : state;
+        });
+    };
+
+    it('renders loading state initially', () => {
+        mockStoreWith({ isLoading: true });
 
         render(<BrowserRouter><TripResultPage /></BrowserRouter>);
         expect(screen.getByText('Loading Trip Details...')).toBeInTheDocument();
     });
 
     it('renders error state when trip fetch fails', () => {
-        (useTripStore as any).mockReturnValue({
-            currentTrip: null,
-            fetchTrip: vi.fn(),
-            selectTransit: vi.fn(),
-            isLoading: false,
-            error: 'Failed to fetch trip details',
-        });
+        mockStoreWith({ error: 'Failed to fetch trip details' });
 
         render(<BrowserRouter><TripResultPage /></BrowserRouter>);
         expect(screen.getByText('Trip Not Found')).toBeInTheDocument();
         expect(screen.getByText('Failed to fetch trip details')).toBeInTheDocument();
     });
 
-    it('renders trip details properly and defaults to recommended mode', async () => {
-        const mockFetchTrip = vi.fn();
+    it('renders trip details and shows recommended transit buffer text', () => {
         const mockTrip = createMockTrip();
-
-        (useTripStore as any).mockReturnValue({
-            currentTrip: mockTrip,
-            fetchTrip: mockFetchTrip,
-            selectTransit: vi.fn(),
-            isLoading: false,
-            error: null,
-        });
+        mockStoreWith({ currentTrip: mockTrip });
 
         render(<BrowserRouter><TripResultPage /></BrowserRouter>);
 
@@ -104,34 +107,31 @@ describe('TripResultPage', () => {
         expect(screen.getByText('45 min')).toBeInTheDocument();
         expect(screen.getByText('20 min')).toBeInTheDocument();
 
-        // Default should be Car (Recommended)
+        // recommendedTransit is 'car', so buffer text should say 'driving'
         expect(screen.getByText('(Includes a 5 min buffer for driving)')).toBeInTheDocument();
-        // Since it's the default and only selection, there should be "Recommended" but no explicit "Selected" override badge initially
         expect(screen.getByText('Recommended')).toBeInTheDocument();
     });
 
+    it('shows bus buffer text when recommendedTransit is bus', () => {
+        const mockTrip = createMockTrip({ recommendedTransit: 'bus' });
+        mockStoreWith({ currentTrip: mockTrip });
 
-    it('auto-selects Car and disables Bus when Bus is unavailable', async () => {
+        render(<BrowserRouter><TripResultPage /></BrowserRouter>);
+
+        expect(screen.getByText('(Includes a 5 min buffer for public transit)')).toBeInTheDocument();
+    });
+
+    it('auto-selects Car and shows Bus as unavailable when busEtaMinutes is null', () => {
         const mockTrip = createMockTrip({
             busEtaMinutes: null,
             busLeaveBy: null,
             recommendedTransit: 'car',
         });
-
-        (useTripStore as any).mockReturnValue({
-            currentTrip: mockTrip,
-            fetchTrip: vi.fn(),
-            selectTransit: vi.fn(),
-            isLoading: false,
-            error: null,
-        });
+        mockStoreWith({ currentTrip: mockTrip });
 
         render(<BrowserRouter><TripResultPage /></BrowserRouter>);
 
         expect(screen.getByText('Bus path unavailable')).toBeInTheDocument();
-        
-        const carElement = screen.getByText('Car / Uber').closest('div.relative.bg-white') as HTMLElement;
-        fireEvent.click(carElement); // shouldn't trigger state issues, isToggleable is false
     });
 
     it('successfully saves a trip and navigates', async () => {
@@ -154,28 +154,64 @@ describe('TripResultPage', () => {
         // Click "Yes, Save" in the confirmation modal
         const confirmButton = screen.getByText('Yes, Save');
         fireEvent.click(confirmButton);
+    it('opens confirmation dialog when Save Trip is clicked', () => {
+        const mockTrip = createMockTrip();
+        mockStoreWith({ currentTrip: mockTrip });
+
+        render(<BrowserRouter><TripResultPage /></BrowserRouter>);
+
+        fireEvent.click(screen.getByText('Save Trip'));
+
+        expect(screen.getByText('Save this trip?')).toBeInTheDocument();
+        expect(screen.getByText('Yes, Save')).toBeInTheDocument();
+        expect(screen.getByText('Cancel')).toBeInTheDocument();
+    });
+
+    it('navigates to /homepage after confirming save', async () => {
+        const mockAddTrip = vi.fn().mockResolvedValue({ success: true });
+        const mockTrip = createMockTrip();
+
+        // id is not 'preview', so addTrip won't be called — just push/notification flow runs
+        // We mock window.confirm to skip the push notification prompt
+        vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+        mockStoreWith({ currentTrip: mockTrip, addTrip: mockAddTrip });
+
+        render(<BrowserRouter><TripResultPage /></BrowserRouter>);
+
+        fireEvent.click(screen.getByText('Save Trip'));
+        fireEvent.click(screen.getByText('Yes, Save'));
 
         await waitFor(() => {
             expect(mockedUseNavigate).toHaveBeenCalledWith('/homepage');
         });
+
+        vi.restoreAllMocks();
+    });
+
+    it('closes dialog and does not navigate when Cancel is clicked', () => {
+        const mockTrip = createMockTrip();
+        mockStoreWith({ currentTrip: mockTrip });
+
+        render(<BrowserRouter><TripResultPage /></BrowserRouter>);
+
+        fireEvent.click(screen.getByText('Save Trip'));
+        expect(screen.getByText('Save this trip?')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('Cancel'));
+
+        expect(screen.queryByText('Save this trip?')).not.toBeInTheDocument();
+        expect(mockedUseNavigate).not.toHaveBeenCalled();
     });
 
     it('navigates to new trip page when Plan Another is clicked', () => {
         const mockTrip = createMockTrip();
-
-        (useTripStore as any).mockReturnValue({
-            currentTrip: mockTrip,
-            fetchTrip: vi.fn(),
-            selectTransit: vi.fn(),
-            isLoading: false,
-            error: null,
-        });
+        mockStoreWith({ currentTrip: mockTrip });
 
         render(<BrowserRouter><TripResultPage /></BrowserRouter>);
-        
-        const planAnotherBtn = screen.getByText('Plan Another Trip');
-        fireEvent.click(planAnotherBtn);
-        
+
+        fireEvent.click(screen.getByText('Plan Another Trip'));
+
         expect(mockedUseNavigate).toHaveBeenCalledWith('/trips/new');
     });
 });
