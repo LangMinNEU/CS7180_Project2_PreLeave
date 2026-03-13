@@ -3,14 +3,16 @@ import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi } from 'vitest';
 import PlanPage from './PlanPage';
 
-const { mockUseTripStore } = vi.hoisted(() => {
+const { mockUseTripStore, mockCreatePreview } = vi.hoisted(() => {
     const addTrip = vi.fn();
+    const createPreview = vi.fn();
     return {
         mockAddTrip: addTrip,
+        mockCreatePreview: createPreview,
         mockUseTripStore: Object.assign(
-            (selector: any) => selector({ addTrip }),
+            (selector: any) => selector({ addTrip, createPreview }),
             { getState: () => ({ error: null }) }
-        )
+        ),
     };
 });
 
@@ -100,7 +102,10 @@ describe('PlanPage Component', () => {
         expect(mockNavigate).toHaveBeenCalledWith('/homepage');
     });
 
-    it('submits valid form data', async () => {
+    it('submits valid form data and navigates to trip-result/preview on success', async () => {
+        const mockPreview = { id: 'preview', startAddress: '123 Main St', destAddress: '456 Work Ave', requiredArrivalTime: '', reminderLeadMinutes: 60, status: 'pending', userId: '', createdAt: '' };
+        mockCreatePreview.mockResolvedValue({ success: true, data: mockPreview });
+
         renderComponent();
 
         fireEvent.change(screen.getByLabelText(/start address/i), { target: { value: '123 Main St' } });
@@ -108,20 +113,51 @@ describe('PlanPage Component', () => {
 
         const { date, time } = getFutureDateStrings();
         fireEvent.change(screen.getByLabelText(/required arrival date/i), {
-            target: { value: date }
+            target: { value: date },
         });
         fireEvent.change(screen.getByLabelText(/required arrival time/i), {
-            target: { value: time }
+            target: { value: time },
         });
 
         const submitButton = screen.getByRole('button', { name: /plan trip/i });
         fireEvent.click(submitButton);
 
-        // Verification of navigate happens after submission completes (mocked delay 800ms)
-        // In a real test we'd probably want to await for the state to settle
         await waitFor(() => {
-            // MockNavigate should be called after form completes
-            // Since we mocked addTrip via useTripStore it'll pass through without failing
+            expect(mockCreatePreview).toHaveBeenCalled();
+            expect(mockNavigate).toHaveBeenCalledWith('/trip-result/preview', { state: { preview: mockPreview } });
+        });
+    });
+
+    it('displays form error when createPreview fails', async () => {
+        mockCreatePreview.mockResolvedValue({ success: false, error: 'No route found' });
+
+        renderComponent();
+        fireEvent.change(screen.getByLabelText(/start address/i), { target: { value: '123 Main St' } });
+        fireEvent.change(screen.getByLabelText(/destination address/i), { target: { value: '456 Work Ave' } });
+        const { date, time } = getFutureDateStrings();
+        fireEvent.change(screen.getByLabelText(/required arrival date/i), { target: { value: date } });
+        fireEvent.change(screen.getByLabelText(/required arrival time/i), { target: { value: time } });
+
+        fireEvent.click(screen.getByRole('button', { name: /plan trip/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/no route found/i)).toBeInTheDocument();
+        });
+    });
+
+    it('displays form error when createPreview throws', async () => {
+        mockCreatePreview.mockRejectedValueOnce(new Error('Network error'));
+        renderComponent();
+        fireEvent.change(screen.getByLabelText(/start address/i), { target: { value: '123 Main St' } });
+        fireEvent.change(screen.getByLabelText(/destination address/i), { target: { value: '456 Work Ave' } });
+        const { date, time } = getFutureDateStrings();
+        fireEvent.change(screen.getByLabelText(/required arrival date/i), { target: { value: date } });
+        fireEvent.change(screen.getByLabelText(/required arrival time/i), { target: { value: time } });
+
+        fireEvent.click(screen.getByRole('button', { name: /plan trip/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/network error|unexpected error/i)).toBeInTheDocument();
         });
     });
 });
