@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, "feature/**" ]
+  pull_request:
+    branches: [ main, "feature/**" ]
+
+jobs:
+  lint:
+    name: Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Lint Backend
+        run: |
+          cd backend
+          npm ci --legacy-peer-deps
+          npm run lint
+
+      - name: Lint Frontend
+        run: |
+          cd frontend
+          npm ci --legacy-peer-deps
+          npm run lint
+
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: preleave_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          cd backend
+          npm ci --legacy-peer-deps
+
+      - name: Database Setup (CI Optimized)
+        run: |
+          cd backend
+          npx prisma db push --force-reset
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/preleave_test
+
+      - name: Run Tests with Coverage
+        run: |
+          cd backend
+          npm run test:coverage
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/preleave_test
+          JWT_SECRET: test_secret
+          FRONTEND_URL: http://localhost:5173
+          HERE_API_KEY: dummy_key
+          VAPID_PUBLIC_KEY: dummy_public
+          VAPID_PRIVATE_KEY: dummy_private
+          VAPID_SUBJECT: mailto:test@example.com
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          cd frontend
+          npm ci --legacy-peer-deps
+
+      - name: Run Tests with Coverage
+        run: |
+          cd frontend
+          npm run test:coverage
+
+  security-scan:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Audit Backend
+        run: |
+          cd backend
+          npm audit --audit-level=critical
+
+      - name: Audit Frontend
+        run: |
+          cd frontend
+          npm audit --audit-level=critical

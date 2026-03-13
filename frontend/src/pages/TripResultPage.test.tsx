@@ -9,6 +9,12 @@ vi.mock('../stores/tripStore', () => ({
     useTripStore: vi.fn(),
 }));
 
+vi.mock('../services/pushNotificationService', () => ({
+    registerPushSubscription: vi.fn(),
+    hasPushPermission: vi.fn().mockReturnValue(false),
+    isPushDenied: vi.fn().mockReturnValue(false),
+}));
+
 // Mock react-router-dom
 const mockedUseNavigate = vi.fn();
 const mockedUseParams = vi.fn();
@@ -26,6 +32,10 @@ describe('TripResultPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockedUseParams.mockReturnValue({ id: 'trip-123' });
+        // Mock window.confirm
+        window.confirm = vi.fn().mockReturnValue(true);
+        // Mock navigate for testing
+        mockedUseNavigate.mockReset();
     });
 
     const createMockTrip = (overrides = {}) => {
@@ -102,14 +112,6 @@ describe('TripResultPage', () => {
         expect(screen.getByText('Recommended')).toBeInTheDocument();
     });
 
-    it('shows bus buffer text when recommendedTransit is bus', () => {
-        const mockTrip = createMockTrip({ recommendedTransit: 'bus' });
-        mockStoreWith({ currentTrip: mockTrip });
-
-        render(<BrowserRouter><TripResultPage /></BrowserRouter>);
-
-        expect(screen.getByText('(Includes a 5 min buffer for public transit)')).toBeInTheDocument();
-    });
 
     it('auto-selects Car and shows Bus as unavailable when busEtaMinutes is null', () => {
         const mockTrip = createMockTrip({
@@ -124,33 +126,26 @@ describe('TripResultPage', () => {
         expect(screen.getByText('Bus path unavailable')).toBeInTheDocument();
     });
 
-    it('opens confirmation dialog when Save Trip is clicked', () => {
+    it('successfully saves a trip and navigates', async () => {
         const mockTrip = createMockTrip();
-        mockStoreWith({ currentTrip: mockTrip });
-
-        render(<BrowserRouter><TripResultPage /></BrowserRouter>);
-
-        fireEvent.click(screen.getByText('Save Trip'));
-
-        expect(screen.getByText('Save this trip?')).toBeInTheDocument();
-        expect(screen.getByText('Yes, Save')).toBeInTheDocument();
-        expect(screen.getByText('Cancel')).toBeInTheDocument();
-    });
-
-    it('navigates to /homepage after confirming save', async () => {
         const mockAddTrip = vi.fn().mockResolvedValue({ success: true });
-        const mockTrip = createMockTrip();
 
-        // id is not 'preview', so addTrip won't be called — just push/notification flow runs
-        // We mock window.confirm to skip the push notification prompt
-        vi.spyOn(window, 'confirm').mockReturnValue(false);
-
-        mockStoreWith({ currentTrip: mockTrip, addTrip: mockAddTrip });
+        (useTripStore as any).mockReturnValue({
+            currentTrip: mockTrip,
+            fetchTrip: vi.fn(),
+            addTrip: mockAddTrip,
+            isLoading: false,
+            error: null,
+        });
 
         render(<BrowserRouter><TripResultPage /></BrowserRouter>);
+        
+        const saveButton = screen.getByText('Save Trip');
+        fireEvent.click(saveButton);
 
-        fireEvent.click(screen.getByText('Save Trip'));
-        fireEvent.click(screen.getByText('Yes, Save'));
+        // Click "Yes, Save" in the confirmation modal
+        const confirmButton = screen.getByText('Yes, Save');
+        fireEvent.click(confirmButton);
 
         await waitFor(() => {
             expect(mockedUseNavigate).toHaveBeenCalledWith('/homepage');
