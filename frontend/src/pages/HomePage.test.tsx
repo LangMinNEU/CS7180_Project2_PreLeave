@@ -150,4 +150,62 @@ describe('HomePage', () => {
         completeButton.click();
         expect(mockCompleteTrip).toHaveBeenCalledWith('1');
     });
+
+    it('navigates to /trips/new when Plan New Trip is clicked', () => {
+        vi.mocked(useTripStore).mockReturnValue({ upcomingTrips: [], fetchTrips: vi.fn(), isLoading: false });
+        renderComponent();
+        const planBtn = screen.getByRole('button', { name: /plan new trip/i });
+        planBtn.click();
+        expect(mockNavigate).toHaveBeenCalledWith('/trips/new');
+    });
+
+    it('navigates to /trips/new when Plan Trip in empty state is clicked', () => {
+        vi.mocked(useTripStore).mockReturnValue({ upcomingTrips: [], fetchTrips: vi.fn(), isLoading: false });
+        renderComponent();
+        const planTripBtn = screen.getByRole('button', { name: /plan trip/i });
+        planTripBtn.click();
+        expect(mockNavigate).toHaveBeenCalledWith('/trips/new');
+    });
+
+    it('shows loading spinner when isLoading is true', () => {
+        vi.mocked(useTripStore).mockReturnValue({ upcomingTrips: [], fetchTrips: vi.fn(), isLoading: true });
+        renderComponent();
+        expect(screen.getByText(/loading your trips/i)).toBeInTheDocument();
+    });
+
+    it('calls refreshEta when refresh button is clicked', async () => {
+        const futureDate = new Date();
+        futureDate.setHours(futureDate.getHours() + 2);
+        const mockTrips = [
+            {
+                id: '1',
+                startAddress: 'Home',
+                destAddress: 'Office',
+                arrivalTime: futureDate.toISOString(),
+                requiredArrivalTime: futureDate.toISOString(),
+                status: 'pending' as const,
+                createdAt: new Date().toISOString(),
+                recommendedTransit: 'bus' as const,
+                busLeaveBy: futureDate.toISOString(),
+                carLeaveBy: null,
+            },
+        ];
+        const mockRefreshEta = vi.fn().mockResolvedValue(undefined);
+        vi.mocked(useTripStore).mockReturnValue({
+            upcomingTrips: mockTrips,
+            fetchTrips: vi.fn(),
+            deleteTrip: vi.fn(),
+            completeTrip: vi.fn(),
+            isLoading: false,
+        });
+        (useTripStore as unknown as { getState: () => { refreshEta: typeof mockRefreshEta; fetchTrips: () => void } }).getState = () => ({
+            refreshEta: mockRefreshEta,
+            fetchTrips: vi.fn(),
+        });
+        renderComponent();
+        const refreshBtn = screen.getByRole('button', { name: /refresh eta for trip to office/i });
+        refreshBtn.click();
+        const { waitFor } = await import('@testing-library/react');
+        await waitFor(() => expect(mockRefreshEta).toHaveBeenCalledWith('1'));
+    });
 });
