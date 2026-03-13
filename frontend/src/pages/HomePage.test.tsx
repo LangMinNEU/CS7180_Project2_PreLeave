@@ -150,4 +150,52 @@ describe('HomePage', () => {
         completeButton.click();
         expect(mockCompleteTrip).toHaveBeenCalledWith('1');
     });
+
+    it('shows "LEAVE NOW" banner when departure is within 5 minutes', () => {
+        const now = new Date();
+        const leaveBy = new Date(now.getTime() + 3 * 60000); // 3 mins from now
+
+        const mockTrips = [{
+            id: '1',
+            startAddress: 'A',
+            destAddress: 'B',
+            busLeaveBy: leaveBy.toISOString(),
+            recommendedTransit: 'bus' as const,
+            status: 'pending' as const,
+            createdAt: now.toISOString(),
+            requiredArrivalTime: new Date(now.getTime() + 60 * 60000).toISOString(),
+        }];
+
+        vi.mocked(useTripStore).mockReturnValue({ upcomingTrips: mockTrips, fetchTrips: vi.fn(), isLoading: false });
+        
+        renderComponent();
+
+        expect(screen.getAllByText(/LEAVE NOW/i).length).toBeGreaterThan(0);
+    });
+
+    it('shows "Departure time missed" when both modes have passed', () => {
+        const now = new Date();
+        const past = new Date(now.getTime() - 10 * 60000); // 10 mins ago
+
+        const mockTrips = [{
+            id: '1',
+            startAddress: 'A',
+            destAddress: 'B',
+            busLeaveBy: past.toISOString(),
+            carLeaveBy: past.toISOString(),
+            busAvailable: true,
+            carAvailable: true,
+            busEtaMinutes: 20,
+            carEtaMinutes: 15,
+            status: 'pending' as const,
+            createdAt: now.toISOString(),
+            requiredArrivalTime: now.toISOString(),
+        }];
+
+        vi.mocked(useTripStore).mockReturnValue({ upcomingTrips: mockTrips, fetchTrips: vi.fn(), isLoading: false });
+        
+        renderComponent();
+
+        expect(screen.getAllByText(/Departure time missed/i).length).toBeGreaterThan(0);
+    });
 });

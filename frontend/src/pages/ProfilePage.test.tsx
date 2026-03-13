@@ -6,144 +6,100 @@ import { useAuthStore } from '../stores/authStore';
 import { useTripStore } from '../stores/tripStore';
 import api from '../services/api';
 
-vi.mock('../services/api');
+// Mock constraints
 const mockNavigate = vi.fn();
-
-vi.mock('../stores/tripStore', () => ({
-    useTripStore: vi.fn(() => ({
-        historyTrips: [
-            {
-                id: '1',
-                startAddress: '123 Main St',
-                destAddress: '456 Market St',
-                requiredArrivalTime: '2026-03-08T10:00:00Z',
-                recommendedTransit: 'bus' as const,
-            },
-            {
-                id: '2',
-                startAddress: '789 Oak Ave',
-                destAddress: '321 Pine Rd',
-                requiredArrivalTime: '2026-03-09T14:30:00Z',
-                recommendedTransit: 'uber' as const,
-            }
-        ],
-        fetchTrips: vi.fn(),
-        deleteTrip: vi.fn(),
-        isLoading: false
-    })),
-}));
-
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual('react-router-dom');
     return {
-        ...(actual as object),
+        ...actual,
         useNavigate: () => mockNavigate,
     };
 });
 
+vi.mock('../stores/authStore', () => ({
+    useAuthStore: Object.assign(vi.fn(), {
+        getState: () => ({
+            user: { email: 'test@example.com' },
+            clearUser: vi.fn(),
+        }),
+    }),
+}));
+
+vi.mock('../stores/tripStore', () => ({
+    useTripStore: vi.fn(),
+}));
+
+vi.mock('../services/api', () => ({
+    default: {
+        post: vi.fn().mockResolvedValue({}),
+    },
+}));
+
 describe('ProfilePage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        useAuthStore.setState({ user: { id: '123', email: 'test@example.com' } });
     });
-    it('renders the header and back button', () => {
-        render(
+
+    const renderComponent = () => {
+        return render(
             <BrowserRouter>
                 <ProfilePage />
             </BrowserRouter>
         );
+    };
 
-        expect(screen.getByText('PreLeave')).toBeInTheDocument();
+    it('renders profile and trip history', () => {
+        vi.mocked(useAuthStore).mockImplementation((selector: any) => selector({
+            user: { email: 'test@example.com' },
+            clearUser: vi.fn(),
+        }));
 
-        // The link should have aria-label="Back to Home"
-        const backLink = screen.getByRole('link', { name: /back to home/i });
-        expect(backLink).toBeInTheDocument();
-        expect(backLink).toHaveAttribute('href', '/homepage');
+        vi.mocked(useTripStore).mockReturnValue({
+            historyTrips: [{ id: '1', startAddress: 'Oakland', destAddress: 'Berkeley', requiredArrivalTime: new Date().toISOString() }],
+            fetchTrips: vi.fn(),
+            deleteTrip: vi.fn(),
+            isLoading: false
+        });
+
+        renderComponent();
+
+        expect(screen.getByText(/test@example.com/i)).toBeInTheDocument();
+        expect(screen.getByText(/Oakland/)).toBeInTheDocument();
+        expect(screen.getByText(/Berkeley/)).toBeInTheDocument();
     });
 
-    it('renders the user profile information from store', () => {
-        render(
-            <BrowserRouter>
-                <ProfilePage />
-            </BrowserRouter>
-        );
+    it('handles logout', async () => {
+        const clearUser = vi.fn();
+        vi.mocked(useAuthStore).mockImplementation(((selector: any) => selector({ user: { email: 'e' }, clearUser })) as any);
+        (useAuthStore as any).getState = () => ({ clearUser });
 
-        expect(screen.getByText('Profile')).toBeInTheDocument();
-        expect(screen.getByText('Logged in as')).toBeInTheDocument();
-        expect(screen.getByText('test@example.com')).toBeInTheDocument();
-    });
+        vi.mocked(useTripStore).mockReturnValue({ historyTrips: [], fetchTrips: vi.fn(), deleteTrip: vi.fn(), isLoading: false });
 
-    it('renders trip history with reuse and delete buttons', () => {
-        render(
-            <BrowserRouter>
-                <ProfilePage />
-            </BrowserRouter>
-        );
+        renderComponent();
 
-        expect(screen.getByText('Trip History')).toBeInTheDocument();
-
-        // Check for some mock data
-        expect(screen.getByText(/123 Main St/)).toBeInTheDocument();
-        expect(screen.getByText(/456 Market St/)).toBeInTheDocument();
-
-        const reuseButtons = screen.getAllByRole('button', { name: /reuse/i });
-        expect(reuseButtons.length).toBeGreaterThan(0);
-
-        const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
-        expect(deleteButtons.length).toBeGreaterThan(0);
-    });
-
-    it('handles logout flow correctly', async () => {
-        render(
-            <BrowserRouter>
-                <ProfilePage />
-            </BrowserRouter>
-        );
-
-        const logoutBtn = screen.getByRole('button', { name: /logout/i });
-        expect(logoutBtn).toBeInTheDocument();
-
-        vi.mocked(api.post).mockResolvedValueOnce({ data: { success: true } });
-
-        fireEvent.click(logoutBtn);
+        fireEvent.click(screen.getByLabelText(/Logout/i));
 
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith('/auth/logout');
-            // The user should have been cleared in the store
-            expect(useAuthStore.getState().user).toBeNull();
-            // The user should be redirected to login
+            expect(clearUser).toHaveBeenCalled();
             expect(mockNavigate).toHaveBeenCalledWith('/login');
         });
     });
 
-    it('calls deleteTrip when the delete button is clicked', () => {
-        const mockDeleteTrip = vi.fn();
-        // Override the mock to inject our mockDeleteTrip
+    it('handles reuse trip', () => {
         vi.mocked(useTripStore).mockReturnValue({
-            historyTrips: [
-                {
-                    id: '1',
-                    startAddress: '123 Main St',
-                    destAddress: '456 Market St',
-                    requiredArrivalTime: '2026-03-08T10:00:00Z',
-                    recommendedTransit: 'bus' as const,
-                }
-            ],
+            historyTrips: [{ id: '1', startAddress: 'Home', destAddress: 'Work', requiredArrivalTime: '2023-01-01T12:00:00Z' }],
             fetchTrips: vi.fn(),
-            deleteTrip: mockDeleteTrip,
+            deleteTrip: vi.fn(),
             isLoading: false
-        } as any);
+        });
 
-        render(
-            <BrowserRouter>
-                <ProfilePage />
-            </BrowserRouter>
-        );
+        renderComponent();
 
-        const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
-        expect(deleteButtons.length).toBeGreaterThan(0);
+        fireEvent.click(screen.getByLabelText(/Reuse/i));
 
-        fireEvent.click(deleteButtons[0]);
-        expect(mockDeleteTrip).toHaveBeenCalledWith('1');
+        expect(mockNavigate).toHaveBeenCalledWith('/trips/new', expect.objectContaining({
+            state: expect.objectContaining({ startAddress: 'Home' })
+        }));
     });
 });

@@ -93,6 +93,11 @@ describe('Trip Controller Integration', () => {
             expect(getCarEta).toHaveBeenCalledTimes(1);
             expect(getTransitEta).toHaveBeenCalledTimes(1);
 
+                // Verify hereApiService was called
+            expect(geocodeAddress).toHaveBeenCalledTimes(2);
+            expect(getCarEta).toHaveBeenCalledTimes(1);
+            expect(getTransitEta).toHaveBeenCalledTimes(1);
+
             // Verify mapping
             expect(response.body.data.id).toBe('trip-123');
             expect(response.body.data.recommendedTransit).toBe('car');
@@ -130,6 +135,138 @@ describe('Trip Controller Integration', () => {
             expect(response.body.success).toBe(false);
             expect(response.body.error).toBe('No route found between the two addresses. Please check your addresses and try again.');
             expect(prisma.trip.create).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('GET /api/trips', () => {
+        beforeEach(() => {
+            app.get('/api/trips', (req: any, res: any, next) => {
+                req.userId = 'test-user-id';
+                next();
+            }, tripController.getTrips);
+        });
+
+        it('should return categorized trips and auto-complete past ones', async () => {
+            const now = new Date();
+            const mockupTrips = [
+                { id: '1', user_id: 'test-user-id', status: 'pending', required_arrival_time: new Date(now.getTime() + 3600000) }, // Future
+                { id: '2', user_id: 'test-user-id', status: 'pending', required_arrival_time: new Date(now.getTime() - 1000000) }, // Past
+                { id: '3', user_id: 'test-user-id', status: 'completed', required_arrival_time: new Date() }, // Already completed
+            ];
+
+            prisma.trip.findMany.mockResolvedValue(mockupTrips);
+            // Mock update for auto-completion
+            prisma.trip.update.mockResolvedValue({});
+
+            const response = await request(app).get('/api/trips');
+
+            expect(response.status).toBe(200);
+            expect(response.body.data.upcoming).toHaveLength(1);
+            expect(response.body.data.history).toHaveLength(2);
+            expect(prisma.trip.update).toHaveBeenCalled();
+        });
+    });
+
+    describe('GET /api/trips/:id', () => {
+        beforeEach(() => {
+            app.get('/api/trips/:id', (req: any, res: any, next) => {
+                req.userId = 'test-user-id';
+                next();
+            }, tripController.getTripById);
+        });
+
+        it('should return trip if authorized', async () => {
+            const mockTrip = { id: 'trip-1', user_id: 'test-user-id', start_address: 'A' };
+            prisma.trip.findUnique.mockResolvedValue(mockTrip);
+
+            const response = await request(app).get('/api/trips/trip-1');
+            expect(response.status).toBe(200);
+            expect(response.body.data.startAddress).toBe('A');
+        });
+
+        it('should return 404 if not found', async () => {
+            prisma.trip.findUnique.mockResolvedValue(null);
+            const response = await request(app).get('/api/trips/missing');
+            expect(response.status).toBe(404);
+        });
+
+        it('should return 403 if unauthorized', async () => {
+            prisma.trip.findUnique.mockResolvedValue({ id: '1', user_id: 'wrong-user' });
+            const response = await request(app).get('/api/trips/1');
+            expect(response.status).toBe(403);
+        });
+    });
+
+    describe('POST /api/trips/preview', () => {
+        beforeEach(() => {
+            app.post('/api/trips/preview', (req: any, res: any, next) => {
+                req.userId = 'test-user-id';
+                next();
+            }, tripController.previewTrip);
+        });
+
+        it('should return preview data without saving to DB', async () => {
+            const payload = {
+                startAddress: 'Start',
+                destAddress: 'Dest',
+                arrivalTime: '2030-03-10T12:00:00.000Z',
+            };
+
+            const response = await request(app)
+                .post('/api/trips/preview')
+                .send(payload);
+
+            expect(response.status).toBe(200);
+            expect(response.body.data.id).toBe('preview');
+            expect(prisma.trip.create).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('DELETE /api/trips/:id', () => {
+        beforeEach(() => {
+            app.delete('/api/trips/:id', (req: any, res: any, next) => {
+                req.userId = 'test-user-id';
+                next();
+            }, tripController.deleteTrip);
+        });
+
+        it('should delete trip if authorized', async () => {
+            prisma.trip.findUnique.mockResolvedValue({ id: '123', user_id: 'test-user-id' });
+            prisma.trip.delete.mockResolvedValue({ id: '123' });
+
+            const response = await request(app).delete('/api/trips/123');
+            expect(response.status).toBe(200);
+            expect(prisma.trip.delete).toHaveBeenCalledWith({ where: { id: '123' } });
+        });
+    });
+
+    describe('POST /api/trips/:id/refresh', () => {
+        beforeEach(() => {
+            app.post('/api/trips/:id/refresh', (req: any, res: any, next) => {
+                req.userId = 'test-user-id';
+                next();
+            }, tripController.refreshEta);
+        });
+
+        it('should recalculate ETAs for a trip', async () => {
+            const mockTrip = {
+                id: '123',
+                user_id: 'test-user-id',
+                start_lat: 10,
+                start_lng: 10,
+                dest_lat: 20,
+                dest_lng: 20,
+                required_arrival_time: new Date('2030-03-10T12:00:00Z'),
+            };
+
+            prisma.trip.findUnique.mockResolvedValue(mockTrip);
+            prisma.trip.update.mockResolvedValue({ ...mockTrip, status: 'pending' });
+
+            const response = await request(app).post('/api/trips/123/refresh');
+
+            expect(response.status).toBe(200);
+            expect(prisma.trip.update).toHaveBeenCalled();
+            expect(getCarEta).toHaveBeenCalled();
         });
     });
 });
