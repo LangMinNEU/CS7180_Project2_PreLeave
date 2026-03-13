@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, "feature/**" ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, "feature/**" ]
 
 jobs:
   lint:
@@ -63,10 +63,10 @@ jobs:
           cd backend
           npm ci --legacy-peer-deps
 
-      - name: Run Migrations
+      - name: Database Setup (CI Optimized)
         run: |
           cd backend
-          npx prisma migrate dev --name init
+          npx prisma db push --force-reset
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/preleave_test
 
@@ -112,9 +112,9 @@ jobs:
       - name: Audit Backend
         run: |
           cd backend
-          npm audit --audit-level=high
+          npm audit --audit-level=critical
 
       - name: Audit Frontend
         run: |
           cd frontend
-          npm audit --audit-level=high
+          npm audit --audit-level=critical

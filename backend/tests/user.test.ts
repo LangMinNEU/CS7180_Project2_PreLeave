@@ -5,7 +5,7 @@ import app from '../src/index';
 describe('User Endpoints', () => {
     describe('GET /api/users/profile', () => {
         it('returns the profile for the logged in user', async () => {
-            const response = await request(app).get('/api/users/profile');
+            const response = await request(app).get('/users/profile');
 
             expect(response.status).toBe(200);
             expect(response.body).toHaveProperty('success', true);
