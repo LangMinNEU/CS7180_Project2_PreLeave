@@ -9,13 +9,12 @@ describe('api', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        // @ts-expect-error replace location for test
-        delete window.location;
-        window.location = { ...originalLocation, href: '' };
+        delete (window as any).location;
+        window.location = { ...originalLocation, href: '' } as any;
     });
 
     afterEach(() => {
-        window.location = originalLocation;
+        window.location = originalLocation as any;
     });
 
     it('uses baseURL from env or localhost', () => {
