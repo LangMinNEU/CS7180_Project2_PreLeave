@@ -195,6 +195,45 @@ cd frontend && npm test
 
 ---
 
+## Agile Process
+
+We ran **2 Sprints** managed through a **GitHub Projects Kanban Board** (Backlog → Sprint Todo → In Progress → In Review → Done), with **12 GitHub Issues** labeled by type (`feature` / `chore` / `docs`) and priority (`high` / `medium` / `low`). All code followed a **Feature Branch → PR → main** workflow. Total: **66 commits, 30+ PRs**.
+
+**Sprint 1 — Foundation & Account Features**
+Set up Antigravity rules and project conventions, implemented user registration/login, and built the profile page with trip history (Issues #1, #7, #8, #10). All completed. *Retro highlights*: Fine-grained issues improved collaboration; frontend–backend integration took longer than expected; testing should be introduced earlier.
+
+**Sprint 2 — Core Trip Workflow & Deployment**
+Implemented the trip search form, Bus vs Car ETA comparison, HERE API integration, departure time calculation, Web Push notifications, trips dashboard, and deployed to Vercel + Railway (Issues #2–#6, #9, #11, #16). All completed — product reached demo-ready state. *Retro highlights*: Integration and deployment should be treated as core sprint work, not last-step tasks; AI-assisted development works best with clear rules and acceptance criteria; CI/CD should be introduced earlier to reduce delivery risk.
+
+---
+
+## CI/CD & DevOps
+
+**CI — GitHub Actions** (`ci.yml`, triggered on every push). 22 workflow runs, **100% pass rate**. The pipeline runs **4 parallel jobs**:
+
+| Job | Duration | Description |
+|-----|----------|-------------|
+| Linting | ~24s | ESLint code style checks |
+| Backend Tests | ~44s | Vitest + Supertest |
+| Frontend Tests | ~22s | Vitest + React Testing Library |
+| Security Audit | ~6s | `npm audit` dependency vulnerability scan |
+
+Total pipeline duration: **~47s**. All CI checks must pass before a PR can be merged.
+
+**CD — Automated Deployment**: Frontend deploys to **Vercel**, backend deploys to **Railway**, both triggered automatically on push to `main`. The project maintains **Preview + Production** environments with **59 total deployments**, all successful. Database migrations are managed via **Prisma** (`prisma migrate dev` for development, `prisma migrate deploy` for production) on **Supabase PostgreSQL**.
+
+---
+
+## Blog & Social Media
+
+📝 **Blog Post**: [How AI Built PreLeave in Antigravity](https://www.linkedin.com/posts/shuhan-dong-aa2041233_how-ai-built-preleave-in-antigravitywith-activity-7438366152441114624-CCr3?utm_source=share&utm_medium=member_desktop&rcm=ACoAADo0QNoBGrOlvQt-S7bs8ApRYL9oApcG-rk) — A detailed write-up on our AI-assisted development workflow using Google Antigravity.
+
+🦋 **BlueSky**:
+- [Lang Min's post](https://bsky.app/profile/langminneu.bsky.social/post/3mgy3m2efjs2v)
+- [Shuhan Dong's post](https://bsky.app/profile/shuhandong.bsky.social/post/3mgy45wvc3k27)
+
+---
+
 ## Team Members
 
 | Name | Role |
