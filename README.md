@@ -5,6 +5,11 @@
 **Live Demo**
 - 🌐 Frontend: [https://cs-7180-project2-preleave.vercel.app](https://cs-7180-project2-preleave.vercel.app)
 - 🚀 Backend API: [https://cs7180project2preleave-production.up.railway.app](https://cs7180project2preleave-production.up.railway.app)
+- 🎬 Demo Video: [YouTube](https://youtu.be/LLgt4GOz7mo)
+
+**Project Documents**
+- 📖 [API Documentation](./API.md)
+- 📊 [Eval Dashboard (PDF)](./eval-dashboard.pdf)
 
 ---
 
